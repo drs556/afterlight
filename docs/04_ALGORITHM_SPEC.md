@@ -61,7 +61,9 @@ Output (JSON, zod-validated, retry once on schema failure then fail the assessme
   }
 }
 ```
-Prompt rules (encode in the versioned template): reason about the **resolution criterion literally as written** (Kalshi resolves on rules text, not vibes); distinguish "will happen eventually" from "will happen before close"; state base rates when the event type is recurring; widen `[p_low, p_high]` when evidence is thin; never exceed the interval the evidence supports. Temperature 0–0.3.
+Prompt rules (encode in the versioned template): reason about the **resolution criterion literally as written** (Kalshi resolves on rules text, not vibes); distinguish "will happen eventually" from "will happen before close"; state base rates when the event type is recurring; widen `[p_low, p_high]` when evidence is thin; never exceed the interval the evidence supports.
+
+**Sampling (updated M2):** the original spec called for temperature 0–0.3, but the current `claude-sonnet` class rejects any `temperature` parameter (HTTP 400). The `temperature` field is therefore omitted, and extended thinking is disabled, so per-assessment cost stays within the ~US$0.02–0.04 estimate the daily budget guard (`03 §3`) depends on. Determinism/consistency is steered through the prompt instead. Implemented in `modules/llm` (`AnthropicLlmClient`).
 
 ## 5. Blending
 
