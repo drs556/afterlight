@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PriceChart } from "@/components/price-chart";
-import { getMarketDetail } from "@/lib/services/markets";
-import { cents, relativeTime } from "@/lib/format";
+import { getMarketDetail, type AssessmentRationale } from "@/lib/services/markets";
+import { cents, pct, relativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +10,10 @@ export default async function MarketDetailPage({ params }: { params: { ticker: s
   const detail = await getMarketDetail(decodeURIComponent(params.ticker));
   if (!detail) notFound();
 
-  const { market, history, resolution } = detail;
+  const { market, history, resolution, assessment, news } = detail;
   const latest = history[history.length - 1];
   const points = history.map((h) => ({ t: new Date(h.capturedAt).getTime(), mid: h.yesMid }));
+  const rationale = (assessment?.rationale ?? null) as AssessmentRationale | null;
 
   return (
     <>
@@ -65,10 +66,93 @@ export default async function MarketDetailPage({ params }: { params: { ticker: s
         </aside>
       </div>
 
-      <p className="mt-6 text-sm text-muted">
-        Verdict, signal breakdown and reasoning appear once scoring (M3) and enrichment (M2) land.
-      </p>
+      {assessment && (
+        <section className="mt-6 rounded-md border border-hairline bg-surface p-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm text-muted">Model reasoning</h2>
+            <span className="tnum text-sm">
+              p_model {pct(assessment.pEstimate)}{" "}
+              <span className="text-muted">
+                [{pct(assessment.pLow)}–{pct(assessment.pHigh)}]
+              </span>
+            </span>
+          </div>
+
+          {rationale?.thesis && <p className="mb-4 text-sm text-text">{rationale.thesis}</p>}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <EvidenceList title="Evidence for" items={rationale?.evidence_for} tone="text-edgePos" />
+            <EvidenceList title="Evidence against" items={rationale?.evidence_against} tone="text-edgeNeg" />
+          </div>
+
+          {rationale?.change_triggers && rationale.change_triggers.length > 0 && (
+            <div className="mt-4">
+              <h3 className="mb-1 text-sm text-muted">What would change this</h3>
+              <ul className="list-inside list-disc text-sm text-text">
+                {rationale.change_triggers.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="mt-4 text-sm text-muted">
+            {assessment.model} · {assessment.promptVersion} · {relativeTime(assessment.createdAt)}
+          </p>
+        </section>
+      )}
+
+      {news.length > 0 && (
+        <section className="mt-6 rounded-md border border-hairline bg-surface p-4">
+          <h2 className="mb-3 text-sm text-muted">Cited news</h2>
+          <ul className="space-y-2 text-sm">
+            {news.map((n) => (
+              <li key={n.id}>
+                <a href={n.url} target="_blank" rel="noreferrer" className="hover:text-accent">
+                  {n.headline}
+                </a>
+                <span className="text-muted">
+                  {" "}
+                  — {n.source ?? "?"}
+                  {n.publishedAt ? ` · ${new Date(n.publishedAt).toLocaleDateString()}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {!assessment && (
+        <p className="mt-6 text-sm text-muted">
+          No enrichment yet — run the enrich job. Verdict and signal breakdown arrive with scoring (M3).
+        </p>
+      )}
     </>
+  );
+}
+
+function EvidenceList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[] | undefined;
+  tone: string;
+}) {
+  return (
+    <div>
+      <h3 className={`mb-1 text-sm ${tone}`}>{title}</h3>
+      {items && items.length > 0 ? (
+        <ul className="list-inside list-disc text-sm text-text">
+          {items.map((it, i) => (
+            <li key={i}>{it}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">—</p>
+      )}
+    </div>
   );
 }
 

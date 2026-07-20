@@ -34,7 +34,7 @@ export default async function RunsPage() {
       )}
 
       <div className="mb-6 flex gap-3">
-        {(["ingest", "settle"] as const).map((job) => (
+        {(["ingest", "enrich", "settle"] as const).map((job) => (
           <form key={job} action={runJobNow.bind(null, job)}>
             <button
               type="submit"
@@ -56,13 +56,14 @@ export default async function RunsPage() {
               <th className="px-3 py-2 font-normal">Duration</th>
               <th className="px-3 py-2 text-right font-normal">OK</th>
               <th className="px-3 py-2 text-right font-normal">Failed</th>
+              <th className="px-3 py-2 text-right font-normal">Cost</th>
               <th className="px-3 py-2 font-normal">Detail</th>
             </tr>
           </thead>
           <tbody>
             {runs.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-muted">
+                <td colSpan={8} className="px-3 py-6 text-center text-muted">
                   No runs yet. Trigger one with “Run ingest” above.
                 </td>
               </tr>
@@ -75,6 +76,7 @@ export default async function RunsPage() {
                 <td className="tnum px-3 py-2">{durationMs(r.startedAt, r.finishedAt)}</td>
                 <td className="tnum px-3 py-2 text-right">{r.itemsOk ?? 0}</td>
                 <td className="tnum px-3 py-2 text-right">{r.itemsFailed ?? 0}</td>
+                <td className="tnum px-3 py-2 text-right">${Number(r.costUsd ?? 0).toFixed(2)}</td>
                 <td className="px-3 py-2 text-edgeNeg">{r.error ?? ""}</td>
               </tr>
             ))}

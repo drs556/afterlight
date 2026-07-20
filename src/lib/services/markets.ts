@@ -49,10 +49,20 @@ export async function getOpportunities(): Promise<OpportunityRow[]> {
     .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
 }
 
+export interface AssessmentRationale {
+  thesis?: string;
+  evidence_for?: string[];
+  evidence_against?: string[];
+  change_triggers?: string[];
+  self_check?: { key_uncertainty?: string };
+}
+
 export interface MarketDetail {
   market: typeof schema.markets.$inferSelect;
   history: { capturedAt: Date; yesMid: number | null }[];
   resolution: typeof schema.resolutions.$inferSelect | null;
+  assessment: typeof schema.llmAssessments.$inferSelect | null;
+  news: (typeof schema.newsItems.$inferSelect)[];
 }
 
 /** A market with its full price history (for the chart) and resolution, if any. */
@@ -71,9 +81,30 @@ export async function getMarketDetail(ticker: string): Promise<MarketDetail | nu
       where: eq(schema.resolutions.ticker, ticker),
     })) ?? null;
 
+  const assessment =
+    (await db.query.llmAssessments.findFirst({
+      where: eq(schema.llmAssessments.ticker, ticker),
+      orderBy: (a, { desc }) => desc(a.createdAt),
+    })) ?? null;
+
+  // News linked to this market, most-recently retrieved first.
+  const links = await db.query.marketNews.findMany({
+    where: eq(schema.marketNews.marketTicker, ticker),
+    orderBy: (mn, { desc }) => desc(mn.retrievedAt),
+    limit: 12,
+  });
+  const newsIds = [...new Set(links.map((l) => l.newsId))];
+  const news = newsIds.length
+    ? await db.query.newsItems.findMany({
+        where: inArray(schema.newsItems.id, newsIds),
+      })
+    : [];
+
   return {
     market,
     history: snaps.map((s) => ({ capturedAt: s.capturedAt, yesMid: s.yesMid })),
     resolution,
+    assessment,
+    news,
   };
 }

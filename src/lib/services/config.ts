@@ -8,6 +8,9 @@ const thresholdsSchema = z.object({
   max_spread: z.number().default(0.08),
   exit_friction: z.number().default(0.01),
   excluded_categories: z.array(z.string()).default([]),
+  // Enrichment controls (docs/02 §5, docs/03 §3).
+  llm_daily_budget_usd: z.number().default(10),
+  enrich_top_k: z.number().default(40),
 });
 
 const weightsSchema = z.object({
