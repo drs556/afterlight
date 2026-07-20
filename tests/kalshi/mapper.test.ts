@@ -1,0 +1,54 @@
+import { describe, it, expect } from "vitest";
+import { normalizeMarket } from "@/modules/kalshi/mapper";
+import type { KalshiMarketDto } from "@/modules/kalshi/schemas";
+
+const base: KalshiMarketDto = {
+  ticker: "TEST-1",
+  event_ticker: "EVT-1",
+  title: "Will it rain?",
+  status: "active",
+  close_time: "2026-08-01T00:00:00Z",
+  yes_bid: 40,
+  yes_ask: 44,
+  volume_24h: 1234,
+  open_interest: 5000,
+  result: "",
+};
+
+describe("normalizeMarket", () => {
+  it("normalizes cents to probabilities and derives mid/spread", () => {
+    const m = normalizeMarket(base);
+    expect(m.yesBid).toBeCloseTo(0.4, 12);
+    expect(m.yesAsk).toBeCloseTo(0.44, 12);
+    expect(m.yesMid).toBeCloseTo(0.42, 12);
+    expect(m.spread).toBeCloseTo(0.04, 12);
+  });
+
+  it("carries category and series from the event context", () => {
+    const m = normalizeMarket(base, { category: "Politics", seriesTicker: "SER-1" });
+    expect(m.category).toBe("Politics");
+    expect(m.seriesTicker).toBe("SER-1");
+  });
+
+  it("appends subtitle to the title when present", () => {
+    const m = normalizeMarket({ ...base, subtitle: "Seattle" });
+    expect(m.title).toBe("Will it rain? — Seattle");
+  });
+
+  it("leaves prices null when the book is empty", () => {
+    const m = normalizeMarket({ ...base, yes_bid: null, yes_ask: null });
+    expect(m.yesMid).toBeNull();
+    expect(m.spread).toBeNull();
+  });
+
+  it("parses only yes/no results, else null", () => {
+    expect(normalizeMarket({ ...base, result: "yes" }).result).toBe("yes");
+    expect(normalizeMarket({ ...base, result: "no" }).result).toBe("no");
+    expect(normalizeMarket({ ...base, result: "" }).result).toBeNull();
+  });
+
+  it("prefers 24h volume over lifetime volume", () => {
+    expect(normalizeMarket({ ...base, volume: 99, volume_24h: 7 }).volume).toBe(7);
+    expect(normalizeMarket({ ...base, volume: 99, volume_24h: undefined }).volume).toBe(99);
+  });
+});
