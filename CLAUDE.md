@@ -2,6 +2,22 @@
 
 Decision-support web app for trading **Kalshi event markets** (politics, economics, culture/media — **not** crypto, **not** sports). It ingests markets, enriches them with news + LLM analysis, scores a fee-adjusted edge, and shows a ranked list of opportunities. **It recommends; it never trades.**
 
+## Current status (see `docs/STATUS.md` for detail)
+
+- **Built & merged to `main`:** M0 (foundation), M1 (Kalshi ingest/settle), M2 (news + LLM enrich), M3 (scoring/ranking/sizing). **Next: M4** (calibration & track record).
+- **Deployed:** live on Vercel at `afterlight-mu.vercel.app` (Hobby tier). DB is Neon, migrated + seeded.
+- **Everything runs in FIXTURE MODE** until API keys are set — no external calls, zero cost. A client is picked by env: Kalshi→fixtures unless `KALSHI_API_KEY_ID`; news→fixtures unless `TAVILY_API_KEY`; LLM→fixtures unless `ANTHROPIC_API_KEY`. Keep this pattern for any new external dependency (real HTTP client + fixture client behind one interface + `getX()` selector).
+- **Unverified live:** the Kalshi HTTP client (RSA-PSS signing, pagination) — written to spec, never hit the real API. Smoke-test on the first live ingest.
+- **`enrich` is manual-only** (Runs page "Run now") — the only job that spends money. `ingest`/`score`/`settle` run on cron (free). Vercel Hobby caps crons at **once/day**; `vercel.json` uses daily schedules — restore sub-daily on Pro (snippet in README).
+
+## Conventions established (follow these)
+
+- **Jobs:** each has a pure-ish body (`runIngest`/`runEnrich`/`runScore`/`runSettle`), wrapped by `withRun()` (ledger in `pipeline_runs`), exposed at `/api/jobs/<name>` (guarded by `CRON_SECRET` bearer) AND a session-authed "Run now" server action. `modules/scoring` & `modules/calibration` stay **pure** (no I/O) — put their job orchestrators in `lib/services/*` so coverage isn't polluted.
+- **Config:** `getActiveConfig()` returns the latest `config_versions` row; new fields go in the zod schema in `lib/services/config.ts` with defaults (so old rows still parse). Settings writes a **new** row, never mutates.
+- **Append-only:** never update/delete `market_snapshots`, `llm_assessments`, `scores`.
+- **Verify against Neon:** each milestone was smoke-tested with a throwaway `_x-smoke.ts` at repo root (`npx tsx`, then delete). Restore config to seed defaults after tests that insert config rows.
+- **Spec drift recorded:** `04 §4` (temperature omitted — Sonnet rejects it) and `02 §5` (enrich manual) are documented deviations. If you deviate, update the spec in the same change.
+
 ## How we work: spec-driven development
 
 The `docs/` folder is the source of truth. **Read the relevant spec before writing code, and match it exactly.**
