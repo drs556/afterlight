@@ -82,6 +82,7 @@ export async function runScore(): Promise<RunResult> {
           pModelHigh: s.pModelHigh,
           feeAdjustedCost: s.feeAdjustedCost,
           netEdge: s.netEdge,
+          direction: s.direction,
           confidenceTier: s.confidenceTier,
           kellyFull: s.kellyFull,
           kellyUsed: s.kellyUsed,

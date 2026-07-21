@@ -127,6 +127,9 @@ export const scores = pgTable("scores", {
   pModelHigh: doublePrecision("p_model_high"),
   feeAdjustedCost: doublePrecision("fee_adjusted_cost"),
   netEdge: doublePrecision("net_edge"),
+  // Direction the edge/argmax selected ("yes" | "no") — needed for paper PnL
+  // (docs/04 §6.2, §9) and to interpret feeAdjustedCost/netEdge correctly.
+  direction: text("direction"),
   confidenceTier: text("confidence_tier"),
   kellyFull: doublePrecision("kelly_full"),
   kellyUsed: doublePrecision("kelly_used"),

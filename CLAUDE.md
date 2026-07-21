@@ -4,7 +4,7 @@ Decision-support web app for trading **Kalshi event markets** (politics, economi
 
 ## Current status (see `docs/STATUS.md` for detail)
 
-- **Built & merged to `main`:** M0 (foundation), M1 (Kalshi ingest/settle), M2 (news + LLM enrich), M3 (scoring/ranking/sizing). **Next: M4** (calibration & track record).
+- **Built & merged to `main`:** M0 (foundation), M1 (Kalshi ingest/settle), M2 (news + LLM enrich), M3 (scoring/ranking/sizing), M4 (calibration & track record). **MVP complete** — see `05_ROADMAP.md` for post-MVP backlog.
 - **Deployed:** live on Vercel at `afterlight-mu.vercel.app` (Hobby tier). DB is Neon, migrated + seeded.
 - **Everything runs in FIXTURE MODE** until API keys are set — no external calls, zero cost. A client is picked by env: Kalshi→fixtures unless `KALSHI_API_KEY_ID`; news→fixtures unless `TAVILY_API_KEY`; LLM→fixtures unless `ANTHROPIC_API_KEY`. Keep this pattern for any new external dependency (real HTTP client + fixture client behind one interface + `getX()` selector).
 - **Unverified live:** the Kalshi HTTP client (RSA-PSS signing, pagination) — written to spec, never hit the real API. Smoke-test on the first live ingest.

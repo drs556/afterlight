@@ -70,6 +70,7 @@ Full rationale and alternatives in `02_ARCHITECTURE.md`.
 | `04_ALGORITHM_SPEC.md` | Signals, probability blending, edge & fee math, ranking, calibration, sizing |
 | `05_ROADMAP.md` | Build milestones M0–M4 and acceptance criteria per milestone |
 | `STATUS.md` | **Live build status** — what's actually done, deployment, runtime modes, known gaps |
+| `RUNBOOK.md` | Operations — schedules, budget caps, failure playbook, cost verification |
 
 ## 8. Guiding principles for the coding agent
 

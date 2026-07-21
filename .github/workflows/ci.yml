@@ -19,7 +19,7 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests (with coverage threshold)
+        run: npm run test:coverage
       - name: Migration check (schema matches migrations)
         run: npx drizzle-kit check

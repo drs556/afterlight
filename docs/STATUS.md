@@ -10,7 +10,9 @@
 | **M1** Ingestion | ✅ Done | `kalshi` client (HTTP + fixture), `ingest`/`settle` jobs, `pipeline_runs`, Runs page, Opportunities (market data), market detail + price chart |
 | **M2** Enrichment | ✅ Done | `news` (Tavily+GDELT+fixture, dedup, relevance), `llm` (sonnet-5 + fixture, versioned prompt, zod, retry-once, cost), `enrich` job + budget guard; reasoning + cited news on detail. **Manual-only** |
 | **M3** Scoring | ✅ Done | Pure `scoring` (fees, blend, edge, longshot guard, tiers, ranking, Kelly caps) ≥90% branch cov; `score` job; full Opportunities table + edge gauge + actionability rule; verdict + signal breakdown; Settings writes new config_versions |
-| **M4** Calibration | ⏭️ Next | Brier vs market baseline, calibration curve, paper PnL, Track Record page, Playwright E2E, `docs/RUNBOOK.md` |
+| **M4** Calibration | ✅ Done | Pure `calibration` (Brier, log loss, 10-bin calibration curve, paper PnL, category/tier slices) 100% stmts / 98% branch; Track Record page (headline metrics, curve chart, empty state); 3 Playwright E2E flows (login, opportunities, market detail) all passing against Neon; `docs/RUNBOOK.md` |
+
+**MVP complete.** See `05_ROADMAP.md` → Post-MVP backlog for what's next (weight re-fit workflow, WebSocket streaming, base-rate breadth, more sources, multi-user).
 
 ## Deployment
 
