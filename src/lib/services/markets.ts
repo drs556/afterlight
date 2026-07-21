@@ -49,6 +49,79 @@ export async function getOpportunities(): Promise<OpportunityRow[]> {
     .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
 }
 
+export interface RankedOpportunity {
+  ticker: string;
+  title: string;
+  category: string | null;
+  closeTime: Date | null;
+  yesMid: number | null;
+  pModel: number | null;
+  uncertainty: number | null;
+  netEdge: number | null;
+  confidenceTier: string | null;
+  kellyUsed: number | null;
+  sizeCappedReason: string | null;
+  actionable: boolean;
+  rankingScore: number | null;
+  capturedAt: Date | null;
+}
+
+/**
+ * Latest score per active market, ranked by ranking_score desc (docs/01 §3.1).
+ * Ties broken by volume via the snapshot. Returns [] when nothing is scored yet.
+ */
+export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
+  const markets = await db.query.markets.findMany({
+    where: eq(schema.markets.status, "active"),
+  });
+  if (markets.length === 0) return [];
+  const tickers = markets.map((m) => m.ticker);
+  const marketById = new Map(markets.map((m) => [m.ticker, m]));
+
+  const allScores = await db.query.scores.findMany({
+    where: inArray(schema.scores.ticker, tickers),
+    orderBy: (s, { desc }) => desc(s.createdAt),
+  });
+  const latest = new Map<string, (typeof allScores)[number]>();
+  for (const s of allScores) if (!latest.has(s.ticker)) latest.set(s.ticker, s);
+  if (latest.size === 0) return [];
+
+  const snapIds = [...latest.values()].map((s) => s.snapshotId).filter((v): v is number => v !== null);
+  const snaps = snapIds.length
+    ? await db.query.marketSnapshots.findMany({ where: inArray(schema.marketSnapshots.id, snapIds) })
+    : [];
+  const snapById = new Map(snaps.map((s) => [s.id, s]));
+
+  const rows: RankedOpportunity[] = [];
+  for (const s of latest.values()) {
+    const m = marketById.get(s.ticker)!;
+    const snap = s.snapshotId !== null ? snapById.get(s.snapshotId) : undefined;
+    const uncertainty =
+      s.pModel !== null && s.pModelLow !== null && s.pModelHigh !== null
+        ? Math.max(s.pModelHigh - s.pModel, s.pModel - s.pModelLow)
+        : null;
+    rows.push({
+      ticker: s.ticker,
+      title: m.title,
+      category: m.category,
+      closeTime: m.closeTime,
+      yesMid: s.pMarket,
+      pModel: s.pModel,
+      uncertainty,
+      netEdge: s.netEdge,
+      confidenceTier: s.confidenceTier,
+      kellyUsed: s.kellyUsed,
+      sizeCappedReason: s.sizeCappedReason,
+      actionable: s.actionable,
+      rankingScore: s.rankingScore,
+      capturedAt: snap?.capturedAt ?? null,
+    });
+  }
+  return rows.sort(
+    (a, b) => (b.rankingScore ?? -Infinity) - (a.rankingScore ?? -Infinity),
+  );
+}
+
 export interface AssessmentRationale {
   thesis?: string;
   evidence_for?: string[];
@@ -63,6 +136,8 @@ export interface MarketDetail {
   resolution: typeof schema.resolutions.$inferSelect | null;
   assessment: typeof schema.llmAssessments.$inferSelect | null;
   news: (typeof schema.newsItems.$inferSelect)[];
+  score: typeof schema.scores.$inferSelect | null;
+  scoreWeights: { w_mkt: number; w_llm: number; w_base: number } | null;
 }
 
 /** A market with its full price history (for the chart) and resolution, if any. */
@@ -100,11 +175,30 @@ export async function getMarketDetail(ticker: string): Promise<MarketDetail | nu
       })
     : [];
 
+  const score =
+    (await db.query.scores.findFirst({
+      where: eq(schema.scores.ticker, ticker),
+      orderBy: (s, { desc }) => desc(s.createdAt),
+    })) ?? null;
+
+  let scoreWeights: MarketDetail["scoreWeights"] = null;
+  if (score) {
+    const cfg = await db.query.configVersions.findFirst({
+      where: eq(schema.configVersions.id, score.configVersion),
+    });
+    const w = cfg?.weights as { w_mkt?: number; w_llm?: number; w_base?: number } | undefined;
+    if (w && w.w_mkt !== undefined && w.w_llm !== undefined && w.w_base !== undefined) {
+      scoreWeights = { w_mkt: w.w_mkt, w_llm: w.w_llm, w_base: w.w_base };
+    }
+  }
+
   return {
     market,
     history: snaps.map((s) => ({ capturedAt: s.capturedAt, yesMid: s.yesMid })),
     resolution,
     assessment,
     news,
+    score,
+    scoreWeights,
   };
 }

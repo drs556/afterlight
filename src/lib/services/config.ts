@@ -11,6 +11,8 @@ const thresholdsSchema = z.object({
   // Enrichment controls (docs/02 §5, docs/03 §3).
   llm_daily_budget_usd: z.number().default(10),
   enrich_top_k: z.number().default(40),
+  // Bankroll for sizing display only — the app never trades (docs/01 §3.5).
+  bankroll_usd: z.number().default(10000),
 });
 
 const weightsSchema = z.object({

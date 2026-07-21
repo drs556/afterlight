@@ -6,10 +6,12 @@ import { withRun, isJobRunning } from "@/modules/runs/ledger";
 import { runIngest } from "@/modules/kalshi/ingest";
 import { runSettle } from "@/modules/kalshi/settle";
 import { runEnrich } from "@/modules/enrich/run";
+import { runScore } from "@/lib/services/score-run";
 
 const jobBodies = {
   ingest: runIngest,
   enrich: runEnrich,
+  score: runScore,
   settle: runSettle,
 } as const;
 

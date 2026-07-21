@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1784593447080" clover="3.2.0">
+  <project timestamp="1784593447080" name="All files">
+    <metrics statements="162" coveredstatements="162" conditionals="52" coveredconditionals="51" methods="17" coveredmethods="17" elements="231" coveredelements="230" complexity="0" loc="162" ncloc="162" packages="1" files="7" classes="7"/>
+    <file name="blend.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\blend.ts">
+      <metrics statements="40" coveredstatements="40" conditionals="14" coveredconditionals="13" methods="3" coveredmethods="3"/>
+      <line num="1" count="1" type="stmt"/>
+      <line num="24" count="30" type="cond" truecount="1" falsecount="0"/>
+      <line num="25" count="30" type="stmt"/>
+      <line num="26" count="30" type="stmt"/>
+      <line num="27" count="30" type="stmt"/>
+      <line num="28" count="30" type="stmt"/>
+      <line num="29" count="30" type="stmt"/>
+      <line num="30" count="30" type="stmt"/>
+      <line num="31" count="30" type="stmt"/>
+      <line num="32" count="30" type="stmt"/>
+      <line num="33" count="30" type="stmt"/>
+      <line num="34" count="30" type="cond" truecount="1" falsecount="0"/>
+      <line num="35" count="30" type="cond" truecount="1" falsecount="0"/>
+      <line num="36" count="30" type="cond" truecount="2" falsecount="0"/>
+      <line num="37" count="27" type="cond" truecount="1" falsecount="0"/>
+      <line num="38" count="27" type="stmt"/>
+      <line num="50" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="51" count="10" type="stmt"/>
+      <line num="52" count="10" type="cond" truecount="2" falsecount="0"/>
+      <line num="54" count="10" type="stmt"/>
+      <line num="55" count="10" type="stmt"/>
+      <line num="56" count="10" type="stmt"/>
+      <line num="58" count="10" type="stmt"/>
+      <line num="59" count="10" type="stmt"/>
+      <line num="70" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="71" count="2" type="stmt"/>
+      <line num="72" count="2" type="stmt"/>
+      <line num="73" count="2" type="stmt"/>
+      <line num="74" count="2" type="stmt"/>
+      <line num="75" count="2" type="stmt"/>
+      <line num="76" count="2" type="stmt"/>
+      <line num="77" count="2" type="stmt"/>
+      <line num="78" count="2" type="cond" truecount="1" falsecount="0"/>
+      <line num="80" count="2" type="cond" truecount="1" falsecount="1"/>
+      <line num="81" count="2" type="cond" truecount="1" falsecount="0"/>
+      <line num="82" count="5" type="stmt"/>
+      <line num="83" count="5" type="stmt"/>
+      <line num="84" count="5" type="stmt"/>
+      <line num="85" count="2" type="stmt"/>
+      <line num="86" count="2" type="stmt"/>
+    </file>
+    <file name="confidence.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\confidence.ts">
+      <metrics statements="15" coveredstatements="15" conditionals="12" coveredconditionals="12" methods="3" coveredmethods="3"/>
+      <line num="18" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="19" count="9" type="cond" truecount="4" falsecount="0"/>
+      <line num="20" count="4" type="stmt"/>
+      <line num="21" count="4" type="cond" truecount="1" falsecount="0"/>
+      <line num="22" count="9" type="cond" truecount="3" falsecount="0"/>
+      <line num="23" count="2" type="stmt"/>
+      <line num="24" count="2" type="cond" truecount="1" falsecount="0"/>
+      <line num="25" count="3" type="stmt"/>
+      <line num="26" count="3" type="stmt"/>
+      <line num="29" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="30" count="6" type="stmt"/>
+      <line num="31" count="6" type="stmt"/>
+      <line num="34" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="35" count="5" type="stmt"/>
+      <line num="36" count="5" type="stmt"/>
+    </file>
+    <file name="edge.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\edge.ts">
+      <metrics statements="16" coveredstatements="16" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>
+      <line num="1" count="1" type="stmt"/>
+      <line num="30" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="31" count="6" type="stmt"/>
+      <line num="33" count="6" type="stmt"/>
+      <line num="34" count="6" type="stmt"/>
+      <line num="35" count="6" type="stmt"/>
+      <line num="37" count="6" type="stmt"/>
+      <line num="38" count="6" type="stmt"/>
+      <line num="40" count="6" type="cond" truecount="1" falsecount="0"/>
+      <line num="41" count="5" type="stmt"/>
+      <line num="42" count="5" type="cond" truecount="1" falsecount="0"/>
+      <line num="43" count="1" type="stmt"/>
+      <line num="44" count="1" type="stmt"/>
+      <line num="50" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="51" count="7" type="cond" truecount="2" falsecount="0"/>
+      <line num="52" count="7" type="stmt"/>
+    </file>
+    <file name="fees.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\fees.ts">
+      <metrics statements="10" coveredstatements="10" conditionals="3" coveredconditionals="3" methods="3" coveredmethods="3"/>
+      <line num="8" count="20" type="cond" truecount="1" falsecount="0"/>
+      <line num="9" count="20" type="stmt"/>
+      <line num="10" count="20" type="stmt"/>
+      <line num="13" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="14" count="20" type="stmt"/>
+      <line num="15" count="20" type="stmt"/>
+      <line num="16" count="20" type="stmt"/>
+      <line num="19" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="20" count="19" type="stmt"/>
+      <line num="21" count="19" type="stmt"/>
+    </file>
+    <file name="index.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\index.ts">
+      <metrics statements="45" coveredstatements="45" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+      <line num="1" count="1" type="stmt"/>
+      <line num="51" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="52" count="4" type="stmt"/>
+      <line num="53" count="4" type="stmt"/>
+      <line num="55" count="4" type="stmt"/>
+      <line num="56" count="4" type="stmt"/>
+      <line num="57" count="4" type="stmt"/>
+      <line num="58" count="4" type="stmt"/>
+      <line num="60" count="4" type="stmt"/>
+      <line num="61" count="4" type="stmt"/>
+      <line num="62" count="4" type="stmt"/>
+      <line num="63" count="4" type="stmt"/>
+      <line num="64" count="4" type="stmt"/>
+      <line num="65" count="4" type="stmt"/>
+      <line num="67" count="4" type="stmt"/>
+      <line num="68" count="4" type="stmt"/>
+      <line num="69" count="4" type="stmt"/>
+      <line num="70" count="4" type="stmt"/>
+      <line num="71" count="4" type="stmt"/>
+      <line num="72" count="4" type="stmt"/>
+      <line num="73" count="4" type="stmt"/>
+      <line num="75" count="4" type="stmt"/>
+      <line num="76" count="4" type="stmt"/>
+      <line num="77" count="4" type="stmt"/>
+      <line num="78" count="4" type="stmt"/>
+      <line num="79" count="4" type="stmt"/>
+      <line num="80" count="4" type="cond" truecount="1" falsecount="0"/>
+      <line num="82" count="4" type="stmt"/>
+      <line num="84" count="4" type="stmt"/>
+      <line num="85" count="4" type="stmt"/>
+      <line num="86" count="4" type="stmt"/>
+      <line num="87" count="4" type="stmt"/>
+      <line num="88" count="4" type="stmt"/>
+      <line num="89" count="4" type="stmt"/>
+      <line num="90" count="4" type="stmt"/>
+      <line num="91" count="4" type="stmt"/>
+      <line num="92" count="4" type="stmt"/>
+      <line num="93" count="4" type="stmt"/>
+      <line num="94" count="4" type="stmt"/>
+      <line num="95" count="4" type="stmt"/>
+      <line num="96" count="4" type="stmt"/>
+      <line num="97" count="4" type="stmt"/>
+      <line num="98" count="4" type="stmt"/>
+      <line num="99" count="4" type="stmt"/>
+      <line num="100" count="4" type="stmt"/>
+    </file>
+    <file name="kelly.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\kelly.ts">
+      <metrics statements="26" coveredstatements="26" conditionals="12" coveredconditionals="12" methods="2" coveredmethods="2"/>
+      <line num="6" count="1" type="stmt"/>
+      <line num="7" count="1" type="stmt"/>
+      <line num="8" count="1" type="stmt"/>
+      <line num="17" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="19" count="9" type="cond" truecount="2" falsecount="0"/>
+      <line num="21" count="9" type="cond" truecount="2" falsecount="0"/>
+      <line num="22" count="5" type="stmt"/>
+      <line num="23" count="5" type="cond" truecount="1" falsecount="0"/>
+      <line num="25" count="4" type="stmt"/>
+      <line num="26" count="9" type="cond" truecount="1" falsecount="0"/>
+      <line num="27" count="2" type="stmt"/>
+      <line num="28" count="2" type="stmt"/>
+      <line num="29" count="2" type="stmt"/>
+      <line num="30" count="2" type="stmt"/>
+      <line num="37" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="38" count="2" type="stmt"/>
+      <line num="39" count="2" type="stmt"/>
+      <line num="40" count="2" type="cond" truecount="1" falsecount="0"/>
+      <line num="41" count="2" type="cond" truecount="2" falsecount="0"/>
+      <line num="43" count="1" type="stmt"/>
+      <line num="44" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="45" count="3" type="stmt"/>
+      <line num="46" count="3" type="stmt"/>
+      <line num="47" count="3" type="stmt"/>
+      <line num="48" count="1" type="stmt"/>
+      <line num="49" count="1" type="stmt"/>
+    </file>
+    <file name="math.ts" path="C:\Users\javie\OneDrive\Documentos\Github\Personal\afterlight\src\modules\scoring\math.ts">
+      <metrics statements="10" coveredstatements="10" conditionals="3" coveredconditionals="3" methods="3" coveredmethods="3"/>
+      <line num="5" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="6" count="56" type="stmt"/>
+      <line num="7" count="56" type="stmt"/>
+      <line num="10" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="11" count="53" type="stmt"/>
+      <line num="12" count="53" type="stmt"/>
+      <line num="13" count="53" type="stmt"/>
+      <line num="16" count="1" type="cond" truecount="1" falsecount="0"/>
+      <line num="17" count="35" type="stmt"/>
+      <line num="18" count="35" type="stmt"/>
+    </file>
+  </project>
+</coverage>

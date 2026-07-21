@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PriceChart } from "@/components/price-chart";
 import { getMarketDetail, type AssessmentRationale } from "@/lib/services/markets";
+import { EdgeGauge } from "@/components/edge-gauge";
+import { signalBreakdown } from "@/modules/scoring";
 import { cents, pct, relativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +12,18 @@ export default async function MarketDetailPage({ params }: { params: { ticker: s
   const detail = await getMarketDetail(decodeURIComponent(params.ticker));
   if (!detail) notFound();
 
-  const { market, history, resolution, assessment, news } = detail;
+  const { market, history, resolution, assessment, news, score, scoreWeights } = detail;
   const latest = history[history.length - 1];
   const points = history.map((h) => ({ t: new Date(h.capturedAt).getTime(), mid: h.yesMid }));
   const rationale = (assessment?.rationale ?? null) as AssessmentRationale | null;
+
+  const breakdown =
+    score && scoreWeights && score.pMarket !== null && assessment?.pEstimate != null
+      ? signalBreakdown(
+          { pMarket: score.pMarket, pLlm: assessment.pEstimate, pBase: null },
+          scoreWeights,
+        )
+      : null;
 
   return (
     <>
@@ -65,6 +75,64 @@ export default async function MarketDetailPage({ params }: { params: { ticker: s
           )}
         </aside>
       </div>
+
+      {score && (
+        <section className="mt-6 rounded-md border border-hairline bg-surface p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-sm text-muted">Verdict</h2>
+            <EdgeGauge netEdge={score.netEdge} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Stat label="Market" value={cents(score.pMarket)} />
+            <Stat label="Model" value={pct(score.pModel)} />
+            <Stat label="Confidence" value={score.confidenceTier ?? "—"} />
+            <Stat
+              label="Suggested size"
+              value={score.kellyUsed ? pct(score.kellyUsed) : "—"}
+            />
+          </div>
+
+          <p className="mt-4 text-sm text-muted">
+            Full Kelly f* = {score.kellyFull !== null ? pct(score.kellyFull) : "—"} × 0.15 fraction
+            {score.sizeCappedReason ? ` → ${score.sizeCappedReason}` : ""} ={" "}
+            <span className="text-text">{score.kellyUsed ? pct(score.kellyUsed) : "—"}</span> of
+            bankroll.
+          </p>
+
+          {!score.actionable && (
+            <p className="mt-2 text-sm text-edgeNeg">
+              Below the actionable net-edge threshold — estimation noise, not signal.
+            </p>
+          )}
+
+          {breakdown && (
+            <div className="mt-5">
+              <h3 className="mb-2 text-sm text-muted">Signal breakdown (log-odds)</h3>
+              <table className="w-full text-table">
+                <thead className="border-b border-hairline text-left text-muted">
+                  <tr>
+                    <th className="py-1 pr-3 font-normal">Signal</th>
+                    <th className="py-1 pr-3 text-right font-normal">Raw</th>
+                    <th className="py-1 pr-3 text-right font-normal">Weight</th>
+                    <th className="py-1 pr-3 text-right font-normal">Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {breakdown.map((s) => (
+                    <tr key={s.name} className="border-b border-hairline last:border-0">
+                      <td className="py-1 pr-3">{s.name}</td>
+                      <td className="tnum py-1 pr-3 text-right">{pct(s.rawProb)}</td>
+                      <td className="tnum py-1 pr-3 text-right">{pct(s.weight)}</td>
+                      <td className="tnum py-1 pr-3 text-right">{s.contribution.toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {assessment && (
         <section className="mt-6 rounded-md border border-hairline bg-surface p-4">
@@ -152,6 +220,15 @@ function EvidenceList({
       ) : (
         <p className="text-sm text-muted">—</p>
       )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-sm text-muted">{label}</div>
+      <div className="tnum text-lg">{value}</div>
     </div>
   );
 }

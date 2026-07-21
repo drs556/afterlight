@@ -34,7 +34,7 @@ export default async function RunsPage() {
       )}
 
       <div className="mb-6 flex gap-3">
-        {(["ingest", "enrich", "settle"] as const).map((job) => (
+        {(["ingest", "enrich", "score", "settle"] as const).map((job) => (
           <form key={job} action={runJobNow.bind(null, job)}>
             <button
               type="submit"
