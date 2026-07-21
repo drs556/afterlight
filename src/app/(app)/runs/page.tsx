@@ -46,6 +46,12 @@ export default async function RunsPage() {
         ))}
       </div>
 
+      <p className="mb-6 text-sm text-muted">
+        Ingest and settle run automatically on a schedule (free — Kalshi data only).{" "}
+        <span className="text-text">Enrich is manual</span> because it spends on the news and LLM
+        APIs — roughly $1–2 per run, capped by the daily budget guard.
+      </p>
+
       <div className="overflow-x-auto rounded-md border border-hairline">
         <table className="w-full text-table">
           <thead className="border-b border-hairline text-left text-muted">
