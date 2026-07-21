@@ -46,3 +46,21 @@ Next.js 14 (App Router) · TypeScript strict · Neon Postgres + Drizzle · Auth.
 2. Set the same env vars from `.env.example` in Project → Settings → Environment Variables (add `CRON_SECRET`).
 3. Point `DATABASE_URL` at your Neon database; run `npm run db:migrate && npm run db:seed` against it once.
 4. Deploys from `main`. The app requires login at the deployed URL.
+
+### Cron cadence (Hobby vs Pro)
+
+Vercel's **Hobby (free)** tier only runs cron jobs **once per day**. `vercel.json`
+therefore ships daily schedules (ingest 12:00, score 12:30, settle 13:00 UTC) so
+the free deploy succeeds. You can trigger any job on demand from the **Runs** page
+("Run now") regardless of the cron cadence.
+
+On **Pro**, restore the spec's cadence (`02 §5`) by editing `vercel.json`:
+
+```json
+{ "path": "/api/jobs/ingest", "schedule": "*/30 * * * *" },
+{ "path": "/api/jobs/score",  "schedule": "15,45 * * * *" },
+{ "path": "/api/jobs/settle", "schedule": "0 * * * *" }
+```
+
+`enrich` is intentionally **not** on a cron (it's the only job that spends money —
+news + LLM APIs); run it manually from the Runs page.
