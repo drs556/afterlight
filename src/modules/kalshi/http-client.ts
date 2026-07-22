@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import {
-  kalshiEventsResponseSchema,
+  kalshiEventsEnvelopeSchema,
+  kalshiMarketSchema,
   kalshiMarketsResponseSchema,
   type KalshiMarketDto,
 } from "./schemas";
@@ -92,13 +93,22 @@ export class HttpKalshiClient implements KalshiClient {
         limit: "200",
         cursor: params.cursor,
       });
-      const parsed = kalshiEventsResponseSchema.parse(raw);
+      const parsed = kalshiEventsEnvelopeSchema.parse(raw);
       const markets: NormalizedMarket[] = [];
       for (const ev of parsed.events) {
-        for (const m of ev.markets ?? []) {
-          if (m.status !== "active") continue;
+        for (const rawM of ev.markets ?? []) {
+          // Per-market parse: a single malformed market is skipped, never
+          // aborts the page (docs/02 §5). Kalshi's combo/multivariate legs
+          // occasionally omit required fields.
+          const r = kalshiMarketSchema.safeParse(rawM);
+          if (!r.success) continue;
+          if (r.data.status !== "active") continue;
           markets.push(
-            normalizeMarket(m, { category: ev.category, seriesTicker: ev.series_ticker }),
+            normalizeMarket(r.data, {
+              category: ev.category,
+              seriesTicker: ev.series_ticker,
+              eventTitle: ev.title,
+            }),
           );
         }
       }

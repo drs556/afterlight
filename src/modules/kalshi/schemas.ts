@@ -7,7 +7,10 @@ import { z } from "zod";
 export const kalshiMarketSchema = z.object({
   ticker: z.string(),
   event_ticker: z.string().optional(),
-  title: z.string(),
+  // Some nested combo/multivariate markets carry no `title` of their own —
+  // the title lives on the enclosing event. Tolerate its absence; the mapper
+  // falls back to the event title, then subtitle, then the ticker.
+  title: z.string().optional(),
   subtitle: z.string().optional(),
   status: z.string(), // "active" | "closed" | "settled" | "finalized" ...
   close_time: z.string().optional(), // ISO 8601
@@ -59,5 +62,22 @@ export type KalshiEventDto = z.infer<typeof kalshiEventSchema>;
 // GET /events response.
 export const kalshiEventsResponseSchema = z.object({
   events: z.array(kalshiEventSchema),
+  cursor: z.string().nullish(),
+});
+
+// Resilient variant for the live client: nested markets are left unparsed
+// (`unknown`) so a single malformed market can be skipped via per-item
+// safeParse instead of aborting the whole page (docs/02 §5 — partial failure
+// tolerated). The strict schema above is still used for the clean fixtures.
+export const kalshiEventsEnvelopeSchema = z.object({
+  events: z.array(
+    z.object({
+      event_ticker: z.string(),
+      series_ticker: z.string().optional(),
+      title: z.string().optional(),
+      category: z.string().optional(),
+      markets: z.array(z.unknown()).optional(),
+    }),
+  ),
   cursor: z.string().nullish(),
 });

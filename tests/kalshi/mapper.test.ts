@@ -73,4 +73,28 @@ describe("normalizeMarket", () => {
     expect(m.yesBid).toBeCloseTo(0.4, 12);
     expect(m.yesAsk).toBeCloseTo(0.44, 12);
   });
+
+  it("falls back to the event title when the market has no title of its own", () => {
+    const { title, ...noTitle } = base;
+    void title;
+    const m = normalizeMarket(noTitle, { eventTitle: "2028 Presidential Election" });
+    expect(m.title).toBe("2028 Presidential Election");
+  });
+
+  it("combines event title with subtitle when the market has no title", () => {
+    const { title, ...noTitle } = base;
+    void title;
+    const m = normalizeMarket(
+      { ...noTitle, subtitle: "Candidate X" },
+      { eventTitle: "2028 Presidential Election" },
+    );
+    expect(m.title).toBe("2028 Presidential Election — Candidate X");
+  });
+
+  it("falls back to the ticker when neither market nor event has a title", () => {
+    const { title, ...noTitle } = base;
+    void title;
+    const m = normalizeMarket(noTitle);
+    expect(m.title).toBe("TEST-1");
+  });
 });

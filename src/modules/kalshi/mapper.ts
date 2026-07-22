@@ -45,7 +45,7 @@ function parseResult(result: string | undefined): "yes" | "no" | null {
  */
 export function normalizeMarket(
   dto: KalshiMarketDto,
-  ctx: { category?: string | null; seriesTicker?: string | null } = {},
+  ctx: { category?: string | null; seriesTicker?: string | null; eventTitle?: string | null } = {},
 ): NormalizedMarket {
   const yesBid = pickProb(dto.yes_bid_dollars, dto.yes_bid);
   const yesAsk = pickProb(dto.yes_ask_dollars, dto.yes_ask);
@@ -54,11 +54,21 @@ export function normalizeMarket(
 
   const rules = [dto.rules_primary, dto.rules_secondary].filter(Boolean).join("\n\n") || null;
 
+  // Kalshi carries the title on the event; a nested market may only add a
+  // subtitle (or nothing). Fall back event title → subtitle → ticker so
+  // `title` is always a non-empty string.
+  const baseTitle = dto.title ?? ctx.eventTitle ?? null;
+  const title = dto.subtitle
+    ? baseTitle
+      ? `${baseTitle} — ${dto.subtitle}`
+      : dto.subtitle
+    : (baseTitle ?? dto.ticker);
+
   return {
     ticker: dto.ticker,
     eventTicker: dto.event_ticker ?? null,
     seriesTicker: ctx.seriesTicker ?? null,
-    title: dto.subtitle ? `${dto.title} — ${dto.subtitle}` : dto.title,
+    title,
     category: ctx.category ?? null,
     rulesSummary: rules,
     resolutionSource: null,
