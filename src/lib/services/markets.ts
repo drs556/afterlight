@@ -12,16 +12,22 @@ export interface OpportunityRow {
   capturedAt: Date | null;
 }
 
+export interface OpportunitiesView {
+  rows: OpportunityRow[];
+  total: number;
+}
+
 /**
  * Active markets with their latest snapshot (market data only — no model
  * columns yet; those arrive in M3). Sorted by volume desc as a stand-in for
- * ranking until scores exist.
+ * ranking until scores exist. Capped at `limit` rows (the full universe can be
+ * tens of thousands); `total` reports how many active markets exist.
  */
-export async function getOpportunities(): Promise<OpportunityRow[]> {
+export async function getOpportunities(limit = 100): Promise<OpportunitiesView> {
   const markets = await db.query.markets.findMany({
     where: eq(schema.markets.status, "active"),
   });
-  if (markets.length === 0) return [];
+  if (markets.length === 0) return { rows: [], total: 0 };
 
   const tickers = markets.map((m) => m.ticker);
   const snaps = await db.query.marketSnapshots.findMany({
@@ -32,7 +38,7 @@ export async function getOpportunities(): Promise<OpportunityRow[]> {
   const latest = new Map<string, (typeof snaps)[number]>();
   for (const s of snaps) if (!latest.has(s.ticker)) latest.set(s.ticker, s);
 
-  return markets
+  const rows = markets
     .map((m) => {
       const s = latest.get(m.ticker);
       return {
@@ -46,7 +52,10 @@ export async function getOpportunities(): Promise<OpportunityRow[]> {
         capturedAt: s?.capturedAt ?? null,
       };
     })
-    .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0));
+    .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+    .slice(0, limit);
+
+  return { rows, total: markets.length };
 }
 
 export interface RankedOpportunity {

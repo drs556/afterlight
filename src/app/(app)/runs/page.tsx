@@ -3,6 +3,7 @@ import { getRecentRuns } from "@/lib/services/runs";
 import { usingFixtures } from "@/modules/kalshi";
 import { relativeTime } from "@/lib/format";
 import { runJobNow } from "./actions";
+import { RunButton } from "./run-button";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,7 @@ export default async function RunsPage() {
       <div className="mb-6 flex gap-3">
         {(["ingest", "enrich", "score", "settle"] as const).map((job) => (
           <form key={job} action={runJobNow.bind(null, job)}>
-            <button
-              type="submit"
-              className="rounded border border-hairline bg-surface px-3 py-1.5 text-sm hover:border-accent"
-            >
-              Run {job}
-            </button>
+            <RunButton job={job} />
           </form>
         ))}
       </div>

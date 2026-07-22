@@ -21,7 +21,7 @@ export default async function OpportunitiesPage() {
 
   // Before any scores exist, fall back to the market-data view (M1).
   if (ranked.length === 0) {
-    const rows = await getOpportunities();
+    const { rows, total } = await getOpportunities();
     return (
       <>
         <PageHeader
@@ -29,8 +29,11 @@ export default async function OpportunitiesPage() {
           subtitle="Market data only — run enrich then score to populate model columns."
         />
         <p className="mb-4 text-sm text-muted">
-          Last ingest: <span className="text-text">{relativeTime(lastIngest)}</span> · {rows.length}{" "}
-          markets · nothing scored yet
+          Last ingest: <span className="text-text">{relativeTime(lastIngest)}</span> ·{" "}
+          {total.toLocaleString()} markets · nothing scored yet
+          {total > rows.length && (
+            <> · showing top {rows.length} by volume</>
+          )}
         </p>
         <div className="overflow-x-auto rounded-md border border-hairline">
           <table className="w-full text-table">
