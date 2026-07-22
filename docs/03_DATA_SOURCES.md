@@ -43,6 +43,7 @@ X/Twitter API (expensive, ToS-sensitive), Reddit API, Telegram/Discord scraping.
 - **Model:** `claude-sonnet` class for enrichment (cost/quality balance). One assessment call per market per enrich cycle, JSON-schema-constrained output (see `04 §4`).
 - **Cost model (planning):** assume ~6k input tokens (market rules + news snippets + prompt) and ~1k output tokens per assessment. At sonnet-class pricing this lands around **US$0.02–0.04 per assessment** → 40 markets × 4 runs/day ≈ **US$3–6/day ≈ US$90–180/mo** at full cadence. Verify against current pricing.
 - **Hard budget guard:** `enrich` reads a daily USD cap from config (default **US$10/day**), tracks spend in `pipeline_runs.cost_usd`, and stops with a logged warning when exceeded. Cost per run is surfaced in the Runs screen.
+- **Time budget (resumable):** `enrich` also stops before a wall-clock cap (`enrich_max_seconds`, default **240s**) so it never hits the serverless function timeout. Candidates are ranked stalest-first, so re-running continues with the not-yet-assessed markets. The Runs screen flags a run that stopped early with the count remaining. Each LLM call has a 60s per-request timeout so one hung request can't stall the batch.
 - **Prompt versioning:** every prompt template has a `prompt_version` string stored with each assessment; changing a prompt bumps the version. Calibration must be comparable within a version.
 
 ## 4. Historical / base-rate data

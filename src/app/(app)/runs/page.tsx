@@ -20,6 +20,17 @@ function durationMs(start: Date, end: Date | null): string {
   return `${s}s`;
 }
 
+/** A human hint when enrich stopped early with work remaining (docs/02 §5). */
+function stoppedEarlyHint(meta: unknown): string | null {
+  const m = meta as
+    | { stoppedForTime?: boolean; stoppedForBudget?: boolean; remaining?: number }
+    | null;
+  if (!m || (!m.stoppedForTime && !m.stoppedForBudget)) return null;
+  const reason = m.stoppedForBudget ? "daily budget reached" : "time budget";
+  const remaining = m.remaining ? ` · ${m.remaining} remaining — run again to continue` : "";
+  return `Stopped early (${reason})${remaining}`;
+}
+
 export default async function RunsPage() {
   const runs = await getRecentRuns();
 
@@ -79,7 +90,13 @@ export default async function RunsPage() {
                 <td className="tnum px-3 py-2 text-right">{r.itemsOk ?? 0}</td>
                 <td className="tnum px-3 py-2 text-right">{r.itemsFailed ?? 0}</td>
                 <td className="tnum px-3 py-2 text-right">${Number(r.costUsd ?? 0).toFixed(2)}</td>
-                <td className="px-3 py-2 text-edgeNeg">{r.error ?? ""}</td>
+                <td className="px-3 py-2">
+                  {r.error ? (
+                    <span className="text-edgeNeg">{r.error}</span>
+                  ) : (
+                    <span className="text-muted">{stoppedEarlyHint(r.meta) ?? ""}</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

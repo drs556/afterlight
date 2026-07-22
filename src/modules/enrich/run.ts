@@ -35,10 +35,20 @@ export async function runEnrich(): Promise<RunResult> {
   let itemsFailed = 0;
   let runCost = 0;
   let stoppedForBudget = false;
+  let stoppedForTime = false;
+
+  // Wall-clock budget: stop starting new assessments before the serverless
+  // timeout. Candidates are stalest-first, so a re-run picks up the rest.
+  const startedAt = Date.now();
+  const maxMs = thresholds.enrich_max_seconds * 1000;
 
   for (const c of candidates) {
     if (spentToday + runCost >= budget) {
       stoppedForBudget = true;
+      break;
+    }
+    if (Date.now() - startedAt >= maxMs) {
+      stoppedForTime = true;
       break;
     }
     try {
@@ -108,11 +118,18 @@ export async function runEnrich(): Promise<RunResult> {
     }
   }
 
+  const processed = itemsOk + itemsFailed;
   return {
     itemsOk,
     itemsFailed,
     costUsd: runCost,
-    meta: { stoppedForBudget, spentBeforeRun: spentToday, candidates: candidates.length },
+    meta: {
+      stoppedForBudget,
+      stoppedForTime,
+      spentBeforeRun: spentToday,
+      candidates: candidates.length,
+      remaining: Math.max(0, candidates.length - processed),
+    },
   };
 }
 

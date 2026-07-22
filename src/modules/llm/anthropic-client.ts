@@ -20,7 +20,9 @@ export class AnthropicLlmClient implements LlmClient {
   private readonly client: Anthropic;
 
   constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+    // Per-call timeout (ms) + a single network retry so one hung request can't
+    // stall the enrich time budget or the serverless function (docs/02 §5).
+    this.client = new Anthropic({ apiKey, timeout: 60_000, maxRetries: 1 });
   }
 
   async assess(input: PromptInput): Promise<LlmAssessment> {
