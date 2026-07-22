@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { useReducedMotion } from "@/components/use-reduced-motion";
 
 export interface PricePoint {
   t: number; // epoch ms
@@ -17,6 +18,8 @@ export interface PricePoint {
 
 /** YES mid price over time from our snapshots (docs/01 §3.2 step 4). */
 export function PriceChart({ data }: { data: PricePoint[] }) {
+  const reduced = useReducedMotion();
+
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted">
@@ -62,6 +65,7 @@ export function PriceChart({ data }: { data: PricePoint[] }) {
             dot={false}
             strokeWidth={1.5}
             connectNulls
+            isAnimationActive={!reduced}
           />
         </LineChart>
       </ResponsiveContainer>

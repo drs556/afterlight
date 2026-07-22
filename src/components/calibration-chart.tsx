@@ -2,6 +2,7 @@
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import type { CalibrationBin } from "@/modules/calibration";
+import { useReducedMotion } from "@/components/use-reduced-motion";
 
 export interface CalibrationChartProps {
   ours: CalibrationBin[];
@@ -10,6 +11,7 @@ export interface CalibrationChartProps {
 
 /** Predicted probability (binned) vs realized frequency, ours and the market's on the same axes (docs/01 §3.3). */
 export function CalibrationChart({ ours, market }: CalibrationChartProps) {
+  const reduced = useReducedMotion();
   const data = ours.map((b, i) => ({
     mid: (b.binLow + b.binHigh) / 2,
     ours: b.n > 0 ? b.realizedFrequency : null,
@@ -49,8 +51,8 @@ export function CalibrationChart({ ours, market }: CalibrationChartProps) {
             ]}
             labelFormatter={(v: number) => `predicted ~${(v * 100).toFixed(0)}%`}
           />
-          <Line type="monotone" dataKey="ours" stroke="#7AA2F7" dot connectNulls strokeWidth={1.5} />
-          <Line type="monotone" dataKey="market" stroke="#8A93A2" dot connectNulls strokeWidth={1.5} strokeDasharray="4 3" />
+          <Line type="monotone" dataKey="ours" stroke="#7AA2F7" dot connectNulls strokeWidth={1.5} isAnimationActive={!reduced} />
+          <Line type="monotone" dataKey="market" stroke="#8A93A2" dot connectNulls strokeWidth={1.5} strokeDasharray="4 3" isAnimationActive={!reduced} />
         </LineChart>
       </ResponsiveContainer>
     </div>
