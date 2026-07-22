@@ -72,6 +72,7 @@ export interface RankedOpportunity {
   sizeCappedReason: string | null;
   actionable: boolean;
   rankingScore: number | null;
+  volume: number | null;
   capturedAt: Date | null;
 }
 
@@ -123,6 +124,7 @@ export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
       sizeCappedReason: s.sizeCappedReason,
       actionable: s.actionable,
       rankingScore: s.rankingScore,
+      volume: snap?.volume ?? null,
       capturedAt: snap?.capturedAt ?? null,
     });
   }
