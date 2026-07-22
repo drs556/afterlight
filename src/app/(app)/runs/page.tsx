@@ -21,15 +21,26 @@ function durationMs(start: Date, end: Date | null): string {
   return `${s}s`;
 }
 
+type RunMeta = {
+  stoppedForTime?: boolean;
+  stoppedForBudget?: boolean;
+  remaining?: number;
+  errorSamples?: string[];
+} | null;
+
 /** A human hint when enrich stopped early with work remaining (docs/02 §5). */
 function stoppedEarlyHint(meta: unknown): string | null {
-  const m = meta as
-    | { stoppedForTime?: boolean; stoppedForBudget?: boolean; remaining?: number }
-    | null;
+  const m = meta as RunMeta;
   if (!m || (!m.stoppedForTime && !m.stoppedForBudget)) return null;
   const reason = m.stoppedForBudget ? "daily budget reached" : "time budget";
   const remaining = m.remaining ? ` · ${m.remaining} remaining — run again to continue` : "";
   return `Stopped early (${reason})${remaining}`;
+}
+
+/** First failure reasons for a run, if any (surfaces why assessments failed). */
+function failureSamples(meta: unknown): string[] {
+  const m = meta as RunMeta;
+  return m?.errorSamples ?? [];
 }
 
 export default async function RunsPage() {
@@ -104,7 +115,16 @@ export default async function RunsPage() {
                   {r.error ? (
                     <span className="text-edgeNeg">{r.error}</span>
                   ) : (
-                    <span className="text-muted">{stoppedEarlyHint(r.meta) ?? ""}</span>
+                    <div className="space-y-1">
+                      {stoppedEarlyHint(r.meta) && (
+                        <div className="text-muted">{stoppedEarlyHint(r.meta)}</div>
+                      )}
+                      {failureSamples(r.meta).map((s, i) => (
+                        <div key={i} className="text-edgeNeg" title={s}>
+                          {s}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </td>
               </tr>

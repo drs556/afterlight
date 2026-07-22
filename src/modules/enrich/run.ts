@@ -36,6 +36,7 @@ export async function runEnrich(): Promise<RunResult> {
   let runCost = 0;
   let stoppedForBudget = false;
   let stoppedForTime = false;
+  const errorSamples: string[] = [];
 
   // Wall-clock budget: stop starting new assessments before the serverless
   // timeout. Candidates are stalest-first, so a re-run picks up the rest.
@@ -112,9 +113,14 @@ export async function runEnrich(): Promise<RunResult> {
 
       runCost += assessment.costUsd;
       itemsOk++;
-    } catch {
-      // A failed assessment (schema/API) is logged as a failure, never guessed.
+    } catch (err) {
+      // A failed assessment (schema/API/timeout) is logged as a failure, never
+      // guessed. Capture the reason so the Runs page can show why (docs/02 §5).
       itemsFailed++;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`enrich: assessment failed for ${c.ticker}: ${msg}`);
+      const short = `${c.ticker}: ${msg.slice(0, 160)}`;
+      if (errorSamples.length < 5 && !errorSamples.includes(short)) errorSamples.push(short);
     }
   }
 
@@ -129,6 +135,7 @@ export async function runEnrich(): Promise<RunResult> {
       spentBeforeRun: spentToday,
       candidates: candidates.length,
       remaining: Math.max(0, candidates.length - processed),
+      errorSamples,
     },
   };
 }

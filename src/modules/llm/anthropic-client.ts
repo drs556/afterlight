@@ -32,8 +32,10 @@ export class AnthropicLlmClient implements LlmClient {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await this.client.messages.create({
+        // 4000 leaves headroom for the full JSON (thesis + evidence arrays +
+        // self_check) so news-heavy assessments don't truncate mid-object.
         model: MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         thinking: { type: "disabled" },
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
