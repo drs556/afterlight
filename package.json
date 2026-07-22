@@ -16,6 +16,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
+    "db:add-user": "tsx src/db/add-user.ts",
     "e2e": "playwright test"
   },
   "dependencies": {
