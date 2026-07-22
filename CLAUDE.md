@@ -41,7 +41,7 @@ The `docs/` folder is the source of truth. **Read the relevant spec before writi
 
 ## Stack (decided — don't substitute)
 
-Next.js 14+ App Router · TypeScript strict · Vercel (+ Vercel Cron) · Neon Postgres + Drizzle ORM · Auth.js (credentials, single seeded admin) · Tailwind + shadcn/ui + Recharts · Zod at every boundary · Anthropic API (`claude-sonnet`) for enrichment · Vitest + Playwright.
+Next.js 14+ App Router · TypeScript strict · Vercel (+ Vercel Cron) · Neon Postgres + Drizzle ORM · Auth.js (credentials, seeded admin + `admin`/`viewer` roles — mutations gated by `requireAdmin` in `lib/authz.ts`) · Tailwind + shadcn/ui + Recharts · Zod at every boundary · Anthropic API (`claude-sonnet`) for enrichment · Vitest + Playwright.
 
 ## Repo layout
 

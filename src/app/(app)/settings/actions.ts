@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authz";
 import { getActiveConfig } from "@/lib/services/config";
 
 const num = (v: FormDataEntryValue | null) => Number(v);
@@ -29,8 +29,7 @@ const formSchema = z.object({
  * current active config.
  */
 export async function saveSettings(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session) throw new Error("Unauthorized");
+  await requireAdmin();
 
   const parsed = formSchema.parse({
     w_mkt: num(formData.get("w_mkt")),

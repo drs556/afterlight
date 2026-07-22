@@ -6,9 +6,9 @@
 
 ## 1. Users and access
 
-- **Single user for MVP: `admin`.** Authentication via email + password (credentials provider), session-based. No sign-up flow; the admin account is seeded via environment variables / a seed script.
-- All routes except `/login` require an authenticated session. API routes must enforce auth server-side (never trust the client).
-- Schema and auth layer must be written so that adding more users later is a migration, not a rewrite (users table from day one, even with one row).
+- **Two roles (post-MVP, implemented):** `admin` (full access) and `viewer` (read-only). Authentication via email + password (credentials provider), session-based. No sign-up flow; the admin is seeded via env/seed script, and further users are created with `npm run db:add-user` (`NEW_USER_ROLE` defaults to `admin`). The role rides the JWT/session; anything not exactly `admin` collapses to `viewer` (least privilege).
+- **What each role can do:** viewers can read Opportunities, Track record, market detail, and the Runs history. **Only admins** can change Settings (write a new config version) or trigger jobs from the Runs page — including `enrich`, which spends money. Enforcement is server-side in the actions (`requireAdmin`); the UI (hidden Settings link, hidden Run buttons, access-denied panels) is cosmetic defence-in-depth only.
+- All routes except `/login` require an authenticated session. API routes / server actions must enforce auth (and role, for mutations) server-side (never trust the client).
 
 ## 2. Information architecture
 

@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { getRecentRuns } from "@/lib/services/runs";
 import { usingFixtures } from "@/modules/kalshi";
+import { isAdmin } from "@/lib/authz";
 import { relativeTime } from "@/lib/format";
 import { runJobNow } from "./actions";
 import { RunButton } from "./run-button";
@@ -32,7 +33,7 @@ function stoppedEarlyHint(meta: unknown): string | null {
 }
 
 export default async function RunsPage() {
-  const runs = await getRecentRuns();
+  const [runs, admin] = await Promise.all([getRecentRuns(), isAdmin()]);
 
   return (
     <>
@@ -45,19 +46,28 @@ export default async function RunsPage() {
         </p>
       )}
 
-      <div className="mb-6 flex gap-3">
-        {(["ingest", "enrich", "score", "settle"] as const).map((job) => (
-          <form key={job} action={runJobNow.bind(null, job)}>
-            <RunButton job={job} />
-          </form>
-        ))}
-      </div>
+      {admin ? (
+        <>
+          <div className="mb-6 flex gap-3">
+            {(["ingest", "enrich", "score", "settle"] as const).map((job) => (
+              <form key={job} action={runJobNow.bind(null, job)}>
+                <RunButton job={job} />
+              </form>
+            ))}
+          </div>
 
-      <p className="mb-6 text-sm text-muted">
-        Ingest and settle run automatically on a schedule (free — Kalshi data only).{" "}
-        <span className="text-text">Enrich is manual</span> because it spends on the news and LLM
-        APIs — roughly $1–2 per run, capped by the daily budget guard.
-      </p>
+          <p className="mb-6 text-sm text-muted">
+            Ingest and settle run automatically on a schedule (free — Kalshi data only).{" "}
+            <span className="text-text">Enrich is manual</span> because it spends on the news and LLM
+            APIs — roughly $1–2 per run, capped by the daily budget guard.
+          </p>
+        </>
+      ) : (
+        <p className="mb-6 rounded border border-hairline bg-surface px-3 py-2 text-sm text-muted">
+          Read-only — only <span className="text-text">admins</span> can run jobs. Below is the run
+          history.
+        </p>
+      )}
 
       <div className="overflow-x-auto rounded-md border border-hairline">
         <table className="w-full text-table">

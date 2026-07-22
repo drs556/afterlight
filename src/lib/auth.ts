@@ -13,6 +13,17 @@ const credentialsSchema = z.object({
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  callbacks: {
+    // Persist the role on the token at sign-in, then expose it on the session.
+    jwt({ token, user }) {
+      if (user) token.role = user.role ?? "viewer";
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) session.user.role = (token.role as string | undefined) ?? "viewer";
+      return session;
+    },
+  },
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
@@ -29,7 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        return { id: String(user.id), email: user.email, name: user.role };
+        return { id: String(user.id), email: user.email, name: user.email, role: user.role };
       },
     }),
   ],

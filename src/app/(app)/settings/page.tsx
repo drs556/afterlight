@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { getActiveConfig } from "@/lib/services/config";
+import { isAdmin } from "@/lib/authz";
 import { saveSettings } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,18 @@ function Field({
 }
 
 export default async function SettingsPage() {
+  if (!(await isAdmin())) {
+    return (
+      <>
+        <PageHeader title="Settings" subtitle="Model weights, thresholds, and budgets." />
+        <div className="rounded-md border border-hairline bg-surface p-6 text-sm text-muted" role="alert">
+          Settings are <span className="text-text">admin-only</span>. Ask an admin to change model
+          weights, thresholds, or budgets.
+        </div>
+      </>
+    );
+  }
+
   const { id, weights, thresholds } = await getActiveConfig();
 
   return (
