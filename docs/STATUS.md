@@ -34,7 +34,7 @@ Env vars set on Vercel today: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADM
 
 1. ~~**Kalshi live client unverified**~~ ✅ **Verified 2026-07-22.** RSA-PSS signing + pagination confirmed against the real API (1,299 open markets, valid cursor). Found and fixed a real spec-drift bug in the process: Kalshi's API now returns dollar-string price fields (`yes_bid_dollars`, etc.) instead of the legacy integer-cents fields the schema expected — see `docs/03_DATA_SOURCES.md §1`. `runIngest()` itself has not yet been run against production Neon (writes ~1,300 rows) — do that as the next live check.
 2. **Cron cadence** — Hobby = once/day (ingest 12:00, score 12:30, settle 13:00 UTC). Sub-daily needs Vercel Pro (snippet in README). `enrich` intentionally off-cron.
-3. **Costs** — only enrich spends (Anthropic ~$0.02–0.04/assessment, Tavily ~$0.005–0.01/search), budget-guarded at $10/day. `docs/COSTS.md` not yet created (verify real pricing there before going live).
+3. ~~**Costs** — `docs/COSTS.md` not yet created~~ ✅ **Created 2026-07-22** (`docs/COSTS.md`, verified pricing). Only enrich spends (Anthropic ~$0.033/assessment on `claude-sonnet-5`, Tavily 1 credit/market), budget-guarded at $10/day, manual-only.
 4. **48h gapless snapshots (M1 accept)** — runtime property; needs Pro cron or manual runs to satisfy.
 
 ## Cost posture
