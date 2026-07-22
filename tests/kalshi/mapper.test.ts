@@ -64,8 +64,9 @@ describe("normalizeMarket", () => {
     });
     expect(m.yesBid).toBeCloseTo(0.12, 12);
     expect(m.yesAsk).toBeCloseTo(0.13, 12);
-    expect(m.volume).toBeCloseTo(1409.24, 12);
-    expect(m.openInterest).toBeCloseTo(500.5, 12);
+    // Fractional _fp counts round to whole numbers for the bigint columns.
+    expect(m.volume).toBe(1409);
+    expect(m.openInterest).toBe(501);
   });
 
   it("falls back to legacy cents fields when dollar-string fields are absent", () => {

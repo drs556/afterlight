@@ -26,9 +26,12 @@ function pickProb(
 }
 
 function pickCount(fp: string | null | undefined, legacy: number | null | undefined): number | null {
+  // The current `*_fp` fields are fractional (e.g. "282.01"); volume/open_interest
+  // are stored as bigint, so round to the nearest whole count. The exact raw value
+  // is preserved in `market_snapshots.raw` for audit.
   if (fp !== null && fp !== undefined) {
     const n = Number(fp);
-    if (Number.isFinite(n)) return n;
+    if (Number.isFinite(n)) return Math.round(n);
   }
   return legacy ?? null;
 }
