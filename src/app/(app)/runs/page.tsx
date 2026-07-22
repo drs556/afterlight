@@ -28,13 +28,19 @@ type RunMeta = {
   errorSamples?: string[];
 } | null;
 
-/** A human hint when enrich stopped early with work remaining (docs/02 §5). */
+/** A human hint about enrich progress: why it stopped and the true backlog. */
 function stoppedEarlyHint(meta: unknown): string | null {
   const m = meta as RunMeta;
-  if (!m || (!m.stoppedForTime && !m.stoppedForBudget)) return null;
-  const reason = m.stoppedForBudget ? "daily budget reached" : "time budget";
-  const remaining = m.remaining ? ` · ${m.remaining} remaining — run again to continue` : "";
-  return `Stopped early (${reason})${remaining}`;
+  const backlog =
+    m?.remaining && m.remaining > 0
+      ? `${m.remaining} eligible market${m.remaining === 1 ? "" : "s"} not yet assessed — run again to cover them`
+      : null;
+
+  if (m?.stoppedForTime || m?.stoppedForBudget) {
+    const reason = m.stoppedForBudget ? "daily budget reached" : "time budget";
+    return backlog ? `Stopped early (${reason}) · ${backlog}` : `Stopped early (${reason})`;
+  }
+  return backlog;
 }
 
 /** First failure reasons for a run, if any (surfaces why assessments failed). */

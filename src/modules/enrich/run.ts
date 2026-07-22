@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getActiveConfig } from "@/lib/services/config";
 import { getNewsClients, retrieveNews } from "@/modules/news";
@@ -25,7 +25,7 @@ export async function runEnrich(): Promise<RunResult> {
     return { itemsOk: 0, itemsFailed: 0, meta: { budgetExceeded: true, spentToday } };
   }
 
-  const candidates = await selectCandidates(
+  const { candidates, eligibleUnassessed } = await selectCandidates(
     thresholds.min_volume,
     thresholds.enrich_top_k,
     thresholds.max_days_to_close,
@@ -124,7 +124,11 @@ export async function runEnrich(): Promise<RunResult> {
     }
   }
 
-  const processed = itemsOk + itemsFailed;
+  // True backlog: eligible markets with no assessment, less the ones this run
+  // just assessed (successes come off the top of the un-assessed queue). When
+  // this hits 0, every eligible market has an assessment; further runs only
+  // refresh the stalest.
+  const remaining = Math.max(0, eligibleUnassessed - itemsOk);
   return {
     itemsOk,
     itemsFailed,
@@ -133,8 +137,8 @@ export async function runEnrich(): Promise<RunResult> {
       stoppedForBudget,
       stoppedForTime,
       spentBeforeRun: spentToday,
-      candidates: candidates.length,
-      remaining: Math.max(0, candidates.length - processed),
+      assessedThisRun: itemsOk,
+      remaining,
       errorSamples,
     },
   };
@@ -150,34 +154,55 @@ interface Candidate {
   snapshotId: number | null;
 }
 
-/** Rank active markets by volume × proximity-to-close × staleness; take top K. */
+/**
+ * Rank active markets by volume × proximity-to-close × staleness; take top K.
+ * Also reports how many eligible markets still have no assessment (the real
+ * backlog). Selects only the needed columns — never the large `raw` jsonb —
+ * so the query stays well under Neon's response-size limit as the DB grows.
+ */
 async function selectCandidates(
   minVolume: number,
   topK: number,
   maxDaysToClose: number,
-): Promise<Candidate[]> {
-  const markets = await db.query.markets.findMany({
-    where: eq(schema.markets.status, "active"),
-  });
-  if (markets.length === 0) return [];
+): Promise<{ candidates: Candidate[]; eligibleUnassessed: number }> {
+  const markets = await db
+    .select({
+      ticker: schema.markets.ticker,
+      title: schema.markets.title,
+      rulesSummary: schema.markets.rulesSummary,
+      resolutionSource: schema.markets.resolutionSource,
+      closeTime: schema.markets.closeTime,
+    })
+    .from(schema.markets)
+    .where(eq(schema.markets.status, "active"));
+  if (markets.length === 0) return { candidates: [], eligibleUnassessed: 0 };
 
   const tickers = markets.map((m) => m.ticker);
-  const snaps = await db.query.marketSnapshots.findMany({
-    where: inArray(schema.marketSnapshots.ticker, tickers),
-    orderBy: (s, { desc }) => desc(s.capturedAt),
-  });
+
+  const snaps = await db
+    .select({
+      id: schema.marketSnapshots.id,
+      ticker: schema.marketSnapshots.ticker,
+      yesMid: schema.marketSnapshots.yesMid,
+      volume: schema.marketSnapshots.volume,
+      capturedAt: schema.marketSnapshots.capturedAt,
+    })
+    .from(schema.marketSnapshots)
+    .where(inArray(schema.marketSnapshots.ticker, tickers))
+    .orderBy(desc(schema.marketSnapshots.capturedAt));
   const latestSnap = new Map<string, (typeof snaps)[number]>();
   for (const s of snaps) if (!latestSnap.has(s.ticker)) latestSnap.set(s.ticker, s);
 
-  const assessments = await db.query.llmAssessments.findMany({
-    where: inArray(schema.llmAssessments.ticker, tickers),
-    orderBy: (a, { desc }) => desc(a.createdAt),
-  });
+  const assessments = await db
+    .select({ ticker: schema.llmAssessments.ticker, createdAt: schema.llmAssessments.createdAt })
+    .from(schema.llmAssessments)
+    .where(inArray(schema.llmAssessments.ticker, tickers))
+    .orderBy(desc(schema.llmAssessments.createdAt));
   const lastAssessedAt = new Map<string, Date>();
   for (const a of assessments) if (!lastAssessedAt.has(a.ticker)) lastAssessedAt.set(a.ticker, a.createdAt);
 
   const now = Date.now();
-  const scored = markets
+  const eligible = markets
     .map((m) => {
       const snap = latestSnap.get(m.ticker);
       const volume = snap?.volume ?? 0;
@@ -204,16 +229,21 @@ async function selectCandidates(
         volume,
         hoursToClose,
         score,
+        assessed: last !== undefined,
       };
     })
     // Universe floor (docs/04 §1): enough liquidity, and 6h–maxDaysToClose to close.
     .filter(
       (x) => x.volume >= minVolume && x.hoursToClose >= 6 && x.hoursToClose <= maxDaysToClose * 24,
-    )
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+    );
 
-  return scored.map((x) => x.candidate);
+  const eligibleUnassessed = eligible.filter((x) => !x.assessed).length;
+  const candidates = eligible
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map((x) => x.candidate);
+
+  return { candidates, eligibleUnassessed };
 }
 
 async function upsertNewsItem(item: {
