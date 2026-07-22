@@ -26,12 +26,15 @@ export interface OpportunitiesView {
 export async function getOpportunities(limit = 100): Promise<OpportunitiesView> {
   const markets = await db.query.markets.findMany({
     where: eq(schema.markets.status, "active"),
+    // Never load the large `raw` jsonb (Neon 64MB response cap) — only the row fields.
+    columns: { ticker: true, title: true, category: true, closeTime: true },
   });
   if (markets.length === 0) return { rows: [], total: 0 };
 
   const tickers = markets.map((m) => m.ticker);
   const snaps = await db.query.marketSnapshots.findMany({
     where: inArray(schema.marketSnapshots.ticker, tickers),
+    columns: { ticker: true, yesMid: true, spread: true, volume: true, capturedAt: true },
     orderBy: (s, { desc }) => desc(s.capturedAt),
   });
 
@@ -83,6 +86,8 @@ export interface RankedOpportunity {
 export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
   const markets = await db.query.markets.findMany({
     where: eq(schema.markets.status, "active"),
+    // Never load the large `raw` jsonb (Neon 64MB response cap).
+    columns: { ticker: true, title: true, category: true, closeTime: true },
   });
   if (markets.length === 0) return [];
   const tickers = markets.map((m) => m.ticker);
@@ -98,7 +103,10 @@ export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
 
   const snapIds = [...latest.values()].map((s) => s.snapshotId).filter((v): v is number => v !== null);
   const snaps = snapIds.length
-    ? await db.query.marketSnapshots.findMany({ where: inArray(schema.marketSnapshots.id, snapIds) })
+    ? await db.query.marketSnapshots.findMany({
+        where: inArray(schema.marketSnapshots.id, snapIds),
+        columns: { id: true, capturedAt: true, volume: true },
+      })
     : [];
   const snapById = new Map(snaps.map((s) => [s.id, s]));
 

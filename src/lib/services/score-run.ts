@@ -19,6 +19,8 @@ export async function runScore(): Promise<RunResult> {
 
   const markets = await db.query.markets.findMany({
     where: eq(schema.markets.status, "active"),
+    // Never load the large `raw` jsonb (Neon 64MB response cap).
+    columns: { ticker: true, eventTicker: true, seriesTicker: true },
   });
   if (markets.length === 0) return { itemsOk: 0, itemsFailed: 0 };
 
@@ -26,6 +28,7 @@ export async function runScore(): Promise<RunResult> {
 
   const snaps = await db.query.marketSnapshots.findMany({
     where: inArray(schema.marketSnapshots.ticker, tickers),
+    columns: { id: true, ticker: true, yesBid: true, yesAsk: true, capturedAt: true },
     orderBy: (s, { desc }) => desc(s.capturedAt),
   });
   const latestSnap = new Map<string, (typeof snaps)[number]>();
@@ -33,6 +36,8 @@ export async function runScore(): Promise<RunResult> {
 
   const assessments = await db.query.llmAssessments.findMany({
     where: inArray(schema.llmAssessments.ticker, tickers),
+    // Exclude the rationale/citations jsonb — only the numbers are needed.
+    columns: { id: true, ticker: true, pEstimate: true, pLow: true, pHigh: true, createdAt: true },
     orderBy: (a, { desc }) => desc(a.createdAt),
   });
   const latestAssessment = new Map<string, (typeof assessments)[number]>();
@@ -132,6 +137,7 @@ async function computeSeriesBaseRates(): Promise<Map<string, number>> {
   const resolvedTickers = resolutions.map((r) => r.ticker);
   const resolvedMarkets = await db.query.markets.findMany({
     where: inArray(schema.markets.ticker, resolvedTickers),
+    columns: { ticker: true, seriesTicker: true },
   });
   const seriesOf = new Map(resolvedMarkets.map((m) => [m.ticker, m.seriesTicker]));
 
