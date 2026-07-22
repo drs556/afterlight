@@ -11,6 +11,7 @@ export const kalshiMarketSchema = z.object({
   subtitle: z.string().optional(),
   status: z.string(), // "active" | "closed" | "settled" | "finalized" ...
   close_time: z.string().optional(), // ISO 8601
+  // Legacy integer-cents fields (pre-2026 API).
   yes_bid: z.number().nullish(),
   yes_ask: z.number().nullish(),
   no_bid: z.number().nullish(),
@@ -20,6 +21,16 @@ export const kalshiMarketSchema = z.object({
   volume_24h: z.number().nullish(),
   open_interest: z.number().nullish(),
   liquidity: z.number().nullish(),
+  // Current API: dollar-denominated decimal strings (docs/03 spec drift).
+  yes_bid_dollars: z.string().nullish(),
+  yes_ask_dollars: z.string().nullish(),
+  no_bid_dollars: z.string().nullish(),
+  no_ask_dollars: z.string().nullish(),
+  last_price_dollars: z.string().nullish(),
+  volume_fp: z.string().nullish(),
+  volume_24h_fp: z.string().nullish(),
+  open_interest_fp: z.string().nullish(),
+  liquidity_dollars: z.string().nullish(),
   result: z.string().optional(), // "yes" | "no" | "" while open
   rules_primary: z.string().optional(),
   rules_secondary: z.string().optional(),

@@ -14,6 +14,7 @@
 - **Constraints to engineer for:** rate limits (respect documented tier; client must implement backoff + request budget per run), pagination cursors, and the fact that category taxonomy is Kalshi's — our include/exclude config maps onto their categories and must be reviewed when they add new ones.
 - **Legal note:** we consume data for internal decision support; no redistribution. Keep credentials data-scoped (no trading permissions) per `02 §7`.
 - **Cost: $0** expected for API usage at MVP scale.
+- **Verified live, M4 (spec drift):** the Trade API v2 no longer returns the legacy integer-cents fields (`yes_bid`, `yes_ask`, `volume`, `open_interest`) on markets nested under `GET /events`. It now returns dollar-denominated decimal strings (`yes_bid_dollars`, `yes_ask_dollars`, etc., e.g. `"0.1200"`) and `*_fp` count fields (`volume_24h_fp`, `open_interest_fp`). `modules/kalshi/schemas.ts` and `mapper.ts` accept both: dollar-string/`_fp` fields are tried first, falling back to the legacy cents fields (which fixtures still use). Confirmed against the live API on 2026-07-22 — 1,299/1,299 open markets returned usable prices after the fix.
 
 ## 2. News & qualitative sources
 

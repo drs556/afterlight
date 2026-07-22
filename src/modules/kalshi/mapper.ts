@@ -9,6 +9,30 @@ function centsToProb(v: number | null | undefined): number | null {
   return v / 100;
 }
 
+/** Current API returns dollar-denominated decimal strings already in [0,1]. */
+function dollarsToProb(v: string | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Prefer the current dollar-string fields; fall back to legacy integer cents. */
+function pickProb(
+  dollars: string | null | undefined,
+  cents: number | null | undefined,
+): number | null {
+  const fromDollars = dollarsToProb(dollars);
+  return fromDollars !== null ? fromDollars : centsToProb(cents);
+}
+
+function pickCount(fp: string | null | undefined, legacy: number | null | undefined): number | null {
+  if (fp !== null && fp !== undefined) {
+    const n = Number(fp);
+    if (Number.isFinite(n)) return n;
+  }
+  return legacy ?? null;
+}
+
 function parseResult(result: string | undefined): "yes" | "no" | null {
   if (result === "yes" || result === "no") return result;
   return null;
@@ -23,8 +47,8 @@ export function normalizeMarket(
   dto: KalshiMarketDto,
   ctx: { category?: string | null; seriesTicker?: string | null } = {},
 ): NormalizedMarket {
-  const yesBid = centsToProb(dto.yes_bid);
-  const yesAsk = centsToProb(dto.yes_ask);
+  const yesBid = pickProb(dto.yes_bid_dollars, dto.yes_bid);
+  const yesAsk = pickProb(dto.yes_ask_dollars, dto.yes_ask);
   const yesMid = yesBid !== null && yesAsk !== null ? (yesBid + yesAsk) / 2 : null;
   const spread = yesBid !== null && yesAsk !== null ? yesAsk - yesBid : null;
 
@@ -46,8 +70,8 @@ export function normalizeMarket(
     yesMid,
     spread,
     // §1 uses 24h volume for the liquidity floor; fall back to lifetime volume.
-    volume: dto.volume_24h ?? dto.volume ?? null,
-    openInterest: dto.open_interest ?? null,
+    volume: pickCount(dto.volume_24h_fp, dto.volume_24h) ?? pickCount(dto.volume_fp, dto.volume),
+    openInterest: pickCount(dto.open_interest_fp, dto.open_interest),
     result: parseResult(dto.result),
     raw: dto,
   };

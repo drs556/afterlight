@@ -51,4 +51,26 @@ describe("normalizeMarket", () => {
     expect(normalizeMarket({ ...base, volume: 99, volume_24h: 7 }).volume).toBe(7);
     expect(normalizeMarket({ ...base, volume: 99, volume_24h: undefined }).volume).toBe(99);
   });
+
+  it("prefers current dollar-string fields over legacy cents fields", () => {
+    const m = normalizeMarket({
+      ...base,
+      yes_bid: 40, // legacy fields present but should be ignored
+      yes_ask: 44,
+      yes_bid_dollars: "0.12",
+      yes_ask_dollars: "0.13",
+      volume_24h_fp: "1409.24",
+      open_interest_fp: "500.5",
+    });
+    expect(m.yesBid).toBeCloseTo(0.12, 12);
+    expect(m.yesAsk).toBeCloseTo(0.13, 12);
+    expect(m.volume).toBeCloseTo(1409.24, 12);
+    expect(m.openInterest).toBeCloseTo(500.5, 12);
+  });
+
+  it("falls back to legacy cents fields when dollar-string fields are absent", () => {
+    const m = normalizeMarket({ ...base, yes_bid_dollars: undefined, yes_ask_dollars: undefined });
+    expect(m.yesBid).toBeCloseTo(0.4, 12);
+    expect(m.yesAsk).toBeCloseTo(0.44, 12);
+  });
 });
