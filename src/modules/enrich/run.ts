@@ -25,7 +25,11 @@ export async function runEnrich(): Promise<RunResult> {
     return { itemsOk: 0, itemsFailed: 0, meta: { budgetExceeded: true, spentToday } };
   }
 
-  const candidates = await selectCandidates(thresholds.min_volume, thresholds.enrich_top_k);
+  const candidates = await selectCandidates(
+    thresholds.min_volume,
+    thresholds.enrich_top_k,
+    thresholds.max_days_to_close,
+  );
 
   let itemsOk = 0;
   let itemsFailed = 0;
@@ -123,7 +127,11 @@ interface Candidate {
 }
 
 /** Rank active markets by volume × proximity-to-close × staleness; take top K. */
-async function selectCandidates(minVolume: number, topK: number): Promise<Candidate[]> {
+async function selectCandidates(
+  minVolume: number,
+  topK: number,
+  maxDaysToClose: number,
+): Promise<Candidate[]> {
   const markets = await db.query.markets.findMany({
     where: eq(schema.markets.status, "active"),
   });
@@ -174,8 +182,10 @@ async function selectCandidates(minVolume: number, topK: number): Promise<Candid
         score,
       };
     })
-    // Universe floor (docs/04 §1): enough liquidity, and 6h–90d to close.
-    .filter((x) => x.volume >= minVolume && x.hoursToClose >= 6 && x.hoursToClose <= 90 * 24)
+    // Universe floor (docs/04 §1): enough liquidity, and 6h–maxDaysToClose to close.
+    .filter(
+      (x) => x.volume >= minVolume && x.hoursToClose >= 6 && x.hoursToClose <= maxDaysToClose * 24,
+    )
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 

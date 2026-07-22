@@ -17,7 +17,7 @@ The market price is a **strong prior**, not noise. Kalshi event markets are comp
 
 A market enters the candidate set iff all hold:
 - Category ∈ included set (events: politics, economics/announcements, culture/media; **crypto & sports excluded**).
-- Status open; time to close between **6 hours and 90 days** (too close = news-race territory we lose; too far = dead capital).
+- Status open; time to close between **6 hours** and `max_days_to_close` (config, default **90 days** — too close = news-race territory we lose; too far = dead capital). The upper bound is configurable because long-dated categories (e.g. elections, whose liquid markets often sit 3–18 months out) warrant a wider window than short-term economic markets.
 - Liquidity floor: 24h volume ≥ `min_volume` (config, default 500 contracts) AND spread ≤ `max_spread` (default 8¢). Illiquid markets can look like huge "edges" that are actually just wide spreads.
 - Rules are self-contained (no market whose resolution source we can't identify from metadata; flagged for manual review instead).
 
