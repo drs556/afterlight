@@ -4,11 +4,13 @@ Decision-support web app for trading **Kalshi event markets** (politics, economi
 
 ## Current status (see `docs/STATUS.md` for detail)
 
-- **Built & merged to `main`:** M0 (foundation), M1 (Kalshi ingest/settle), M2 (news + LLM enrich), M3 (scoring/ranking/sizing), M4 (calibration & track record). **MVP complete** — see `05_ROADMAP.md` for post-MVP backlog.
-- **Deployed:** live on Vercel at `afterlight-mu.vercel.app` (Hobby tier). DB is Neon, migrated + seeded.
-- **Everything runs in FIXTURE MODE** until API keys are set — no external calls, zero cost. A client is picked by env: Kalshi→fixtures unless `KALSHI_API_KEY_ID`; news→fixtures unless `TAVILY_API_KEY`; LLM→fixtures unless `ANTHROPIC_API_KEY`. Keep this pattern for any new external dependency (real HTTP client + fixture client behind one interface + `getX()` selector).
-- **Unverified live:** the Kalshi HTTP client (RSA-PSS signing, pagination) — written to spec, never hit the real API. Smoke-test on the first live ingest.
-- **`enrich` is manual-only** (Runs page "Run now") — the only job that spends money. `ingest`/`score`/`settle` run on cron (free). Vercel Hobby caps crons at **once/day**; `vercel.json` uses daily schedules — restore sub-daily on Pro (snippet in README).
+- **Built & merged to `main`:** M0–M4. **MVP complete and LIVE** on real data — see `docs/STATUS.md` for the full picture and `05_ROADMAP.md` for the post-MVP backlog.
+- **Deployed & live:** `afterlight-mu.vercel.app` (Hobby). DB is Neon. **All three external keys (Kalshi, Tavily, Anthropic) are set on Vercel Production → the deployed app runs in full live mode.** First live run: 12,334 markets ingested (Elections + Climate), 85 scored, 3 actionable. **Local `.env` has only the Kalshi keys**, so local `npx tsx` runs use fixtures for news/LLM.
+- **Fixture pattern still governs** every external dependency: real HTTP client + fixture client behind one interface + `getX()` selector picking by env presence. Keep this for any new dependency.
+- **Kalshi live client verified** (was the one unverified piece). Fixing it surfaced **three spec-drift bugs** now documented in `docs/03 §1`: dollar-string prices (`yes_bid_dollars`), title-less combo markets, fractional `*_fp` volumes. Per-market parsing is fault-tolerant.
+- **Roles:** `admin` / `viewer`. Mutations (Settings writes, "Run now" jobs) are gated server-side by `requireAdmin()` in `lib/authz.ts`. Add users with `npm run db:add-user` (`NEW_USER_ROLE` defaults to admin).
+- **`enrich` is manual-only** (Runs page "Run now") — the only job that spends money, and it's **resumable**: a wall-clock budget (`enrich_max_seconds`) stops it before the serverless timeout; stalest-first ranking means re-running continues. `ingest`/`score`/`settle` run on cron (free). Vercel Hobby caps crons at **once/day** (`vercel.json` daily; restore sub-daily on Pro).
+- **Neon 64MB response cap:** never `findMany` a table with a large `raw`/jsonb column across the whole market universe — select only needed columns. Hot-path queries already do this.
 
 ## Conventions established (follow these)
 
