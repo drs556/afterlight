@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import { getRole } from "@/lib/authz";
+import { NavLinks } from "@/components/nav-links";
 
 const baseLinks = [
   { href: "/opportunities", label: "Opportunities" },
@@ -18,11 +18,7 @@ export async function Nav() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <nav className="flex items-center gap-6">
           <span className="text-sm font-medium tracking-tight">Afterlight Edge</span>
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className="text-sm text-muted hover:text-text">
-              {l.label}
-            </Link>
-          ))}
+          <NavLinks links={links} />
         </nav>
         <div className="flex items-center gap-4">
           {!isAdmin && role && (
