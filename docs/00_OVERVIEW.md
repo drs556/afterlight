@@ -8,6 +8,8 @@
 
 **Afterlight Edge** is an internal decision-support web application for trading **Kalshi event markets** (politics, economics, culture, media — explicitly **not** crypto price markets and **not** sports for the MVP).
 
+> **Post-MVP scope note (2026-07-22):** category scope is config-driven (`excluded_categories`), and the operator has expanded it beyond the MVP thesis to test **Climate and Weather** and **Sports**. These are deliberately efficient markets (weather forecasts, sports books, live odds) where the LLM has little informational edge over the market — the expected and empirical result is few/no actionable opportunities (Climate: 37 assessed → **0 actionable**). They are in scope for experimentation, not because the thesis expects edge there. **Crypto remains excluded.** Revert by adding a category back to `excluded_categories` (a config change, no deploy).
+
 The app continuously ingests Kalshi markets, enriches each one with historical price data and recent news, runs a probability-estimation algorithm, and presents a **ranked list of opportunities**. Markets at the top of the list are the ones where the algorithm has the **highest confidence that its estimated probability diverges profitably from the market price after fees**.
 
 The app does **not** place trades. It recommends. A human (the admin user) decides and executes manually on Kalshi. Automated execution is out of scope for the MVP.
@@ -33,7 +35,7 @@ Everything in the MVP must serve one question: **"Is our estimated probability m
 ## 4. Out of scope (MVP)
 
 - Automated order placement / any write access to Kalshi.
-- Crypto price markets, sports markets.
+- Crypto price markets. (Sports and Climate were **later brought in-scope via config for testing** — see the Post-MVP scope note in §1. Crypto stays excluded.)
 - Polymarket, cross-venue arbitrage.
 - Multi-user accounts, roles, billing (single admin user only; the schema should not preclude adding users later).
 - On-chain treasury, smart contracts, multisig — entirely separate from this app.

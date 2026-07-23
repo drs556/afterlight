@@ -25,7 +25,7 @@ Went live and hardened the pipeline against real Kalshi data. Highlights:
 - **Enrich made resumable/timeout-safe:** wall-clock budget (`enrich_max_seconds`, default 240) stops before the serverless timeout; candidates are stalest-first so re-running continues. 60s per-call LLM timeout. Runs page shows the true un-assessed backlog + failure reasons. See `docs/03 §3`.
 - **Query hardening (Neon 64MB cap):** Opportunities/score/enrich queries no longer load the large `raw` jsonb — select only needed columns. `getRankedOpportunities` is scores-first (deterministic, avoids a 12k-ticker IN-list).
 - **Roles:** `admin` / `viewer` with server-side `requireAdmin` gating on Settings writes + job triggers (docs/01 §1). Create users with `npm run db:add-user`.
-- **Scope:** config-driven categories — currently **Elections + Climate and Weather** (config version rows; `excluded_categories`). Enrich window is config-driven too (`max_days_to_close`, set to 540 for long-dated election primaries).
+- **Scope:** config-driven categories — currently **Elections + Climate and Weather + Sports** (config version rows; `excluded_categories`; Sports added 2026-07-22 as an experiment — see `docs/00 §1` Post-MVP scope note). Enrich window is config-driven too (`max_days_to_close`, set to 540 for long-dated election primaries).
 - **UI (Tier 1–3):** Opportunities filters (category / time-to-close / min-volume / only-actionable), search, responsive table→cards, per-column info tooltips, sticky header; loading skeletons + error boundary per route; `prefers-reduced-motion` on charts; column sort, staleness badge, keyboard nav (j/k/Enter); active-section nav highlight; fresh-on-navigation (`staleTimes.dynamic: 0`).
 
 ## Deployment

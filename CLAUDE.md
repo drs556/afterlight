@@ -1,6 +1,6 @@
 # CLAUDE.md — Afterlight Edge
 
-Decision-support web app for trading **Kalshi event markets** (politics, economics, culture/media — **not** crypto, **not** sports). It ingests markets, enriches them with news + LLM analysis, scores a fee-adjusted edge, and shows a ranked list of opportunities. **It recommends; it never trades.**
+Decision-support web app for trading **Kalshi event markets** (MVP thesis: politics, economics, culture/media — **not** crypto, **not** sports). It ingests markets, enriches them with news + LLM analysis, scores a fee-adjusted edge, and shows a ranked list of opportunities. **It recommends; it never trades.** Category scope is config-driven (`excluded_categories`); post-MVP the operator expanded it to test **Climate** and **Sports** — efficient markets where little edge is expected (crypto stays excluded). See `docs/00 §1` Post-MVP scope note.
 
 ## Current status (see `docs/STATUS.md` for detail)
 
