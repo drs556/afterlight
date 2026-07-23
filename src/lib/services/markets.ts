@@ -84,22 +84,23 @@ export interface RankedOpportunity {
  * Ties broken by volume via the snapshot. Returns [] when nothing is scored yet.
  */
 export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
-  const markets = await db.query.markets.findMany({
-    where: eq(schema.markets.status, "active"),
-    // Never load the large `raw` jsonb (Neon 64MB response cap).
-    columns: { ticker: true, title: true, category: true, closeTime: true },
-  });
-  if (markets.length === 0) return [];
-  const tickers = markets.map((m) => m.ticker);
-  const marketById = new Map(markets.map((m) => [m.ticker, m]));
-
+  // Scores-first: the scores table is small, so load it and reduce to the latest
+  // per ticker before touching markets. Avoids a fragile IN-list over the whole
+  // active universe (12k+ tickers) and is deterministic.
   const allScores = await db.query.scores.findMany({
-    where: inArray(schema.scores.ticker, tickers),
     orderBy: (s, { desc }) => desc(s.createdAt),
   });
   const latest = new Map<string, (typeof allScores)[number]>();
   for (const s of allScores) if (!latest.has(s.ticker)) latest.set(s.ticker, s);
   if (latest.size === 0) return [];
+
+  const scoredTickers = [...latest.keys()];
+  const markets = await db.query.markets.findMany({
+    where: inArray(schema.markets.ticker, scoredTickers),
+    // Never load the large `raw` jsonb (Neon 64MB response cap).
+    columns: { ticker: true, title: true, category: true, closeTime: true, status: true },
+  });
+  const marketById = new Map(markets.map((m) => [m.ticker, m]));
 
   const snapIds = [...latest.values()].map((s) => s.snapshotId).filter((v): v is number => v !== null);
   const snaps = snapIds.length
@@ -112,7 +113,10 @@ export async function getRankedOpportunities(): Promise<RankedOpportunity[]> {
 
   const rows: RankedOpportunity[] = [];
   for (const s of latest.values()) {
-    const m = marketById.get(s.ticker)!;
+    const m = marketById.get(s.ticker);
+    // Only show active markets (a settled market's score stays in the log but
+    // isn't an open opportunity).
+    if (!m || m.status !== "active") continue;
     const snap = s.snapshotId !== null ? snapById.get(s.snapshotId) : undefined;
     const uncertainty =
       s.pModel !== null && s.pModelLow !== null && s.pModelHigh !== null
