@@ -1,6 +1,42 @@
 # Afterlight Edge — Build Status
 
-**Updated:** 2026-07-22 · Companion to `05_ROADMAP.md` (this tracks *actual* progress).
+**Updated:** 2026-09-21 · Companion to `05_ROADMAP.md` (this tracks *actual* progress).
+
+## ⚠️ 2026-09-21 — the pipeline had been dead for two months
+
+Found while picking up post-MVP work. **No cron had ever run successfully.** The session middleware's `config.matcher` excluded `api/auth` but not `api/jobs`, so every Vercel Cron request to `/api/jobs/*` was redirected to `/login` before reaching its `CRON_SECRET` bearer guard. The redirect happens before `withRun()`, so a failing cron left **no trace in `pipeline_runs`** — indistinguishable from a cron that never fired. All 29 runs in the ledger were manual "Run now" clicks.
+
+Consequences, and what was done:
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| `settle` had **never run**; `resolutions` empty; calibration had zero data | middleware redirect + `runSettle` was unrunnable (below) | matcher + runtime check in `lib/route-access.ts`, pinned by tests |
+| `runSettle` could not have completed regardless | it paged `?status=settled` across Kalshi's **entire** settled history, with a per-market `findFirst` loading the whole `raw` column | rewritten to be driven from our own table via `GET /markets?tickers=…` (`03 §1`) |
+| ingest's "Run now" disabled since 2026-07-23 | a run killed mid-flight stayed `running` forever; `isJobRunning` trusted it | `isRunStale` (15 min) in `modules/runs/staleness.ts`; orphan row cleared |
+| `maxDuration = 60` on every job, while real runs took 200–274s | declared value never matched reality; `enrich_max_seconds` (240) sat 4× above its own supposed ceiling | 300 on ingest/enrich/settle, invariant documented in `02 §5` |
+
+**Result:** `settle` seeded **816 resolutions in 3.0s**, and the calibration loop produced its first real numbers — see below.
+
+### First calibration signal (n=81, read it carefully)
+
+| | Ours | Market |
+|---|---|---|
+| Brier | **0.0820** | 0.0956 |
+| Log loss | **0.2589** | 0.2844 |
+
+`beatsBaseline: true`, 40.5% of the way to the resolved-prediction target. **But the aggregate is misleading**, and the slices say so:
+
+- **Climate and Weather** (n=55): 0.0954 vs 0.0971 — a tie. Mean net edge **−1.3 pp**.
+- **Elections** (n=13): 0.0286 vs 0.0288 — a tie. Mean net edge **−1.9 pp**.
+- **Sports** (n=11): 0.0931 vs 0.1847 — the entire apparent advantage, and 22 of the scored+resolved rows come from a single series (`KXNBATEAMANNOUNCE`).
+
+So: on the two categories with real sample size the model **matches the market and finds no fee-adjusted edge** — exactly what `00 §1` predicts for efficient markets. The headline win rests on 11 Sports markets in one series. Paper PnL is empty (nothing was actionable). Nowhere near the `04 §9` bar for re-fitting weights.
+
+### Still open after this pass
+
+1. **The active config (version 11) is a leftover experiment.** Its `excluded_categories` excludes Elections, Politics, Economics, Climate and Weather — *everything except Sports*. The seed default excludes only `["crypto","sports"]`. Ingest will currently pull Sports only, the inverse of the MVP thesis. **Decide and write a new config row before the next ingest.**
+2. **Crons are unverified end-to-end.** The matcher fix is deployed-pending; confirm with `curl -i <host>/api/jobs/settle` returning 401 (not 302), then watch for a `pipeline_runs` row appearing without a manual click.
+3. Market data is still ~2 months stale (snapshots frozen 2026-07-23) until an ingest runs.
 
 **Now live end-to-end with real data.** The full pipeline (ingest → enrich → score → display) runs in production on real Kalshi markets, real news (Tavily/GDELT), and real LLM assessments (`claude-sonnet-5`). As of first live run: **12,334 markets** ingested (Elections + Climate), **85 markets** enriched + scored, **3 actionable** opportunities surfaced. See "Post-MVP work (2026-07-22)" below.
 
@@ -50,7 +86,7 @@ Went live and hardened the pipeline against real Kalshi data. Highlights:
 2. **Cron cadence** — Hobby = once/day (ingest 12:00, score 12:30, settle 13:00 UTC). Sub-daily needs Vercel Pro (snippet in README). `enrich` intentionally off-cron.
 3. ~~**Costs** — `docs/COSTS.md` not yet created~~ ✅ **Created** (verified pricing). Enrich runs ~$0.25/run (≈12 assessments), budget-guarded at $10/day, manual-only.
 4. **48h gapless snapshots (M1 accept)** — runtime property; needs Pro cron or manual runs to satisfy.
-5. **Ingest write batching** — ingest writes markets one row at a time (~202s on Vercel for 12k markets; fine under the current function limit but no headroom to spare). "Small batch + reschedule" / batched inserts remain a good optimization — declined for now since it completes.
+5. **Ingest write batching** — ingest writes markets one row at a time (2 round trips each; ~202–219s for 12k markets). Now comfortably inside the corrected `maxDuration = 300`, so this stays a deferred optimization rather than a risk. Batched multi-row upserts would cut it by roughly an order of magnitude when the universe grows; note that `ON CONFLICT DO UPDATE` needs within-batch ticker dedup and a per-row fallback to keep today's fault tolerance.
 6. **Sticky failures (residual)** — if a market fails assessment for a non-transient reason it stays stalest-first and is retried each run. Moot while failures are ~0 after the coercion fix; add an attempt-cooldown if it recurs.
 
 ## Cost posture

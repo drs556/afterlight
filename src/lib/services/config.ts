@@ -17,6 +17,9 @@ const thresholdsSchema = z.object({
   // Wall-clock budget per enrich invocation (docs/02 §5 — small batch +
   // reschedule). Enrich stops cleanly before this so it never hits the Vercel
   // function timeout; re-running continues with the still-stale markets.
+  // Invariant: this + the 60s per-call LLM timeout must be <= the route's
+  // maxDuration (300s in app/api/jobs/enrich/route.ts). Raising it past 240
+  // requires raising maxDuration too.
   enrich_max_seconds: z.number().default(240),
   // Bankroll for sizing display only — the app never trades (docs/01 §3.5).
   bankroll_usd: z.number().default(10000),

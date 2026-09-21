@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { isRunStale } from "./staleness";
 
 export type JobName = "ingest" | "enrich" | "score" | "settle";
 
@@ -49,12 +50,17 @@ export async function withRun(
   }
 }
 
-/** Is a job currently running? Used to disable "Run now" (docs/01 §3.4). */
+/**
+ * Is a job currently running? Used to disable "Run now" (docs/01 §3.4).
+ * An orphaned row no longer counts — see modules/runs/staleness.ts.
+ */
 export async function isJobRunning(job: JobName): Promise<boolean> {
   const rows = await db.query.pipelineRuns.findMany({
     where: eq(schema.pipelineRuns.job, job),
     orderBy: (r, { desc }) => desc(r.startedAt),
     limit: 1,
   });
-  return rows[0]?.status === "running";
+  const latest = rows[0];
+  if (latest?.status !== "running") return false;
+  return !isRunStale(new Date(latest.startedAt));
 }

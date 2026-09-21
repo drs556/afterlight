@@ -21,7 +21,12 @@ export async function getTrackRecordReport(): Promise<CalibrationReport> {
   }
 
   const tickers = resolutions.map((r) => r.ticker);
-  const markets = await db.query.markets.findMany({ where: inArray(schema.markets.ticker, tickers) });
+  // Only the category is needed for the slices — never select `raw` across a
+  // set that grows with every resolution (Neon 64MB response cap).
+  const markets = await db
+    .select({ ticker: schema.markets.ticker, category: schema.markets.category })
+    .from(schema.markets)
+    .where(inArray(schema.markets.ticker, tickers));
   const marketByTicker = new Map(markets.map((m) => [m.ticker, m]));
 
   const allScores = await db.query.scores.findMany({

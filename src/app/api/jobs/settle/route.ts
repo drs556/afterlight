@@ -4,7 +4,7 @@ import { withRun } from "@/modules/runs/ledger";
 import { runSettle } from "@/modules/kalshi/settle";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(req: Request) {
   const unauthorized = checkCronAuth(req);
