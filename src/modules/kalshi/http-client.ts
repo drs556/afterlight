@@ -12,6 +12,9 @@ const BASE_URL =
   process.env.KALSHI_API_BASE ?? "https://api.elections.kalshi.com/trade-api/v2";
 const PATH_PREFIX = "/trade-api/v2";
 
+/** Tickers per `?tickers=` request — keeps the URL short and the page small. */
+const TICKER_BATCH_SIZE = 100;
+
 interface HttpClientOptions {
   keyId: string;
   privateKeyPem: string;
@@ -116,6 +119,9 @@ export class HttpKalshiClient implements KalshiClient {
     }
 
     // Settled markets: /markets?status=settled (category not needed for settle).
+    // NOTE: `settled` is the query filter; the markets come back with
+    // `status: "finalized"` — the filter and response vocabularies differ
+    // (docs/03 §1). `finalized` is rejected as a filter with HTTP 400.
     const raw = await this.get("/markets", {
       status: "settled",
       limit: "200",
@@ -124,5 +130,21 @@ export class HttpKalshiClient implements KalshiClient {
     const parsed = kalshiMarketsResponseSchema.parse(raw);
     const markets = parsed.markets.map((m: KalshiMarketDto) => normalizeMarket(m));
     return { markets, cursor: parsed.cursor ?? null };
+  }
+
+  async getMarketsByTickers(tickers: string[]): Promise<NormalizedMarket[]> {
+    const out: NormalizedMarket[] = [];
+    // Chunked to keep the query string well inside URL length limits; Kalshi
+    // accepts a comma-separated `tickers` filter and returns only those.
+    for (let i = 0; i < tickers.length; i += TICKER_BATCH_SIZE) {
+      const batch = tickers.slice(i, i + TICKER_BATCH_SIZE);
+      const raw = await this.get("/markets", {
+        tickers: batch.join(","),
+        limit: String(TICKER_BATCH_SIZE * 2),
+      });
+      const parsed = kalshiMarketsResponseSchema.parse(raw);
+      for (const m of parsed.markets) out.push(normalizeMarket(m));
+    }
+    return out;
   }
 }

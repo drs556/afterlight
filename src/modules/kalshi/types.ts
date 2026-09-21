@@ -40,4 +40,12 @@ export interface ListMarketsPage {
 export interface KalshiClient {
   /** One page of markets for the given status. Callers loop on `cursor`. */
   listMarkets(params: ListMarketsParams): Promise<ListMarketsPage>;
+  /**
+   * Look up specific markets by ticker, regardless of status. Used by `settle`
+   * to ask about the markets *we* track instead of walking Kalshi's entire
+   * settled history (docs/02 §5). Implementations chunk the request internally;
+   * callers pass the full list. Tickers Kalshi doesn't know are omitted from
+   * the result rather than erroring.
+   */
+  getMarketsByTickers(tickers: string[]): Promise<NormalizedMarket[]>;
 }

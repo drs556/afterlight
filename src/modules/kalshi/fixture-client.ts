@@ -28,4 +28,29 @@ export class FixtureKalshiClient implements KalshiClient {
     const parsed = kalshiMarketsResponseSchema.parse(settledMarketsResponse);
     return { markets: parsed.markets.map((m) => normalizeMarket(m)), cursor: null };
   }
+
+  async getMarketsByTickers(tickers: string[]): Promise<NormalizedMarket[]> {
+    const wanted = new Set(tickers);
+    // Keyed by ticker: Kalshi returns one row per ticker, and a ticker present
+    // in both fixtures must not come back twice. The settled fixture is written
+    // last so a resolved market wins over its open snapshot — the resolution is
+    // the authoritative current state.
+    const byTicker = new Map<string, NormalizedMarket>();
+
+    const events = kalshiEventsResponseSchema.parse(openEventsResponse);
+    for (const ev of events.events) {
+      for (const m of ev.markets ?? []) {
+        const n = normalizeMarket(m, { category: ev.category, seriesTicker: ev.series_ticker });
+        if (wanted.has(n.ticker)) byTicker.set(n.ticker, n);
+      }
+    }
+    const settled = kalshiMarketsResponseSchema.parse(settledMarketsResponse);
+    for (const m of settled.markets) {
+      const n = normalizeMarket(m);
+      if (wanted.has(n.ticker)) byTicker.set(n.ticker, n);
+    }
+
+    // Unknown tickers are simply absent, as with the live client.
+    return [...byTicker.values()];
+  }
 }
