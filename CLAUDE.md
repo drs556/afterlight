@@ -11,6 +11,8 @@ Decision-support web app for trading **Kalshi event markets** (MVP thesis: polit
 - **Roles:** `admin` / `viewer`. Mutations (Settings writes, "Run now" jobs) are gated server-side by `requireAdmin()` in `lib/authz.ts`. Add users with `npm run db:add-user` (`NEW_USER_ROLE` defaults to admin).
 - **`enrich` is manual-only** (Runs page "Run now") — the only job that spends money, and it's **resumable**: a wall-clock budget (`enrich_max_seconds`) stops it before the serverless timeout; stalest-first ranking means re-running continues. `ingest`/`score`/`settle` run on cron (free). Vercel Hobby caps crons at **once/day** (`vercel.json` daily; restore sub-daily on Pro).
 - **Neon 64MB response cap:** never `findMany` a table with a large `raw`/jsonb column across the whole market universe — select only needed columns. Hot-path queries already do this.
+- **Job endpoints must stay out of the session middleware** (`lib/route-access.ts`, pinned by tests). Cron sends a bearer token, not a cookie; intercepting `/api/jobs/*` redirects it to `/login` and makes the `CRON_SECRET` guard unreachable — **silently**, since the redirect precedes `withRun()` so nothing lands in `pipeline_runs`. This killed every cron for two months (see `docs/STATUS.md`). Smoke test: `/api/jobs/*` unauthenticated must return **401, not 302**.
+- **`settle` is driven from our table**, never by paging Kalshi's settled history. Candidates = tracked markets past close with no `resolutions` row, looked up via `GET /markets?tickers=…`. Note the API asymmetry: `?status=settled` is the filter, but markets come back `"status": "finalized"` (`?status=finalized` → HTTP 400).
 
 ## Conventions established (follow these)
 

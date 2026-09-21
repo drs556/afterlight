@@ -92,9 +92,15 @@ Non-negotiables: snapshots/assessments/scores are never updated or deleted (cali
 | `ingest` | every 30 min | Pull open Kalshi markets in included categories; upsert `markets`; append `market_snapshots`. Cursor-paginated; partial failure tolerated |
 | `enrich` | **manual for MVP** (prioritized) | For top-K candidate markets (by liquidity, proximity to close, staleness): fetch news, dedupe, then one LLM assessment per market. **Budget-guarded**: hard daily cost cap from config; skip-and-log when exceeded. **Updated M2:** run on-demand via the Runs page "Run now" button rather than on a cron, since it is the only job that spends money (news + LLM APIs, ~$1–2/run). Re-add a Vercel cron entry to automate once cost is trusted. |
 | `score` | after ingest & enrich | Recompute `scores` for markets having fresh snapshot (+ latest assessment); pure functions per `04_ALGORITHM_SPEC.md` |
-| `settle` | hourly | Detect resolved markets; write `resolutions`; trigger calibration metric refresh |
+| `settle` | hourly | Detect resolved markets; write `resolutions`; trigger calibration metric refresh. **Driven from our own table** (see below) |
 
 Prioritization for `enrich` (cost control): score candidates by `volume × time_decay(close_time) × staleness`, take top K (config, default 40/run).
+
+**`settle` is driven from our table, not Kalshi's** (corrected 2026-09-21). Candidates are the markets *we* track that are past `close_time` and have no `resolutions` row; they are looked up in chunks via `GET /markets?tickers=…` (`03 §1`). The original implementation paged `?status=settled` from the top, which walks Kalshi's entire settled history — unbounded, overwhelmingly markets we never ingested, and with a per-market `findFirst` that loaded the whole `raw` column. It could not have completed inside any function budget. Absence of a `resolutions` row — not `markets.status` — is the idempotency key, so a market whose status write failed is still retried. Capped at 2,000 markets per invocation; resolved markets leave the candidate set, so re-running drains the backlog.
+
+**Orphaned runs.** A run killed by the platform (serverless timeout) leaves its `pipeline_runs` row as `running` forever, because `withRun`'s catch block never executes. `isJobRunning` therefore ignores `running` rows older than `STALE_RUN_MS` (15 min, `modules/runs/staleness.ts`) — otherwise a single killed run disables that job's "Run now" button permanently, which is what happened to `ingest` between 2026-07-23 and 2026-09-21.
+
+**Function budgets.** `ingest`, `enrich` and `settle` declare `maxDuration = 300`; `score` keeps 60. The enrich wall-clock guard must satisfy `enrich_max_seconds + 60s (per-call LLM timeout) <= maxDuration` — at the 240s default that worst case is exactly 300s. Raising the budget means raising `maxDuration` too.
 
 ## 6. Known platform limits & escape hatches
 
@@ -106,6 +112,7 @@ Prioritization for `enrich` (cost control): score candidates by `volume × time_
 
 - All secrets in Vercel env vars, validated at boot by `lib/env.ts` (zod). `.env.example` documents every variable.
 - Job endpoints require `Authorization: Bearer ${CRON_SECRET}`; UI/API routes require session auth server-side.
+- **The session middleware must exclude `/api/jobs/*`** — both from `config.matcher` and via the runtime check in `lib/route-access.ts`. Vercel Cron sends a bearer token and never a session cookie, so if the middleware intercepts these paths it redirects them to `/login` and the bearer guard in `lib/job-auth.ts` becomes unreachable. **This failure is silent:** the redirect happens before `withRun()`, so a failing cron writes no `pipeline_runs` row and looks exactly like a cron that never fired. It shipped that way and no cron ran between 2026-07-22 and 2026-09-21 — `settle` never ran at all, leaving `resolutions` empty and calibration with zero data. `config.matcher` must be a static literal for Next to analyse it, so `tests/lib/route-access.test.ts` pins the literal against `SESSION_AUTH_MATCHER` to stop the two copies drifting. Verify with `curl -i <host>/api/jobs/settle` — an unauthenticated request must return **401, not 302**.
 - Kalshi credentials: **data access only**; the codebase must contain no order-placement code paths (MVP guardrail).
 - Rate limiting on `/login`; password hashed with argon2/bcrypt; no PII beyond the admin email.
 - Never log secrets, full LLM prompts with keys, or password hashes.
