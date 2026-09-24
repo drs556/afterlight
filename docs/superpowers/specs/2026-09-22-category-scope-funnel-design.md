@@ -1,6 +1,6 @@
 # Category scope as a three-layer funnel
 
-**Date:** 2026-09-22 · **Status:** revised after measuring enrich throughput — pending re-approval
+**Date:** 2026-09-22 · **Status:** implemented 2026-09-24
 **Touches:** `02 §5` (jobs), `03 §1` (Kalshi), `04` (candidate selection), `lib/services/config.ts`
 
 ## Problem
@@ -177,3 +177,16 @@ plan limit is not binding. Revisit only if same-day markets enter the analysis s
 - A single enrich run completes ≥ 35 assessments inside the wall-clock budget, still ending
   within 300s, with daily spend never exceeding the cap by more than `concurrency − 1`
   assessments.
+
+## Implementation notes (2026-09-24)
+
+Added during implementation, each recorded in the canonical spec it touches:
+
+- **Snapshot freshness gate (36h)** in `rankCandidates` (`04 §1`). The ingest floor means a market that loses volume stops being refreshed; without the gate it would be assessed against a stale price.
+- **Spread ceiling applied.** `04 §1` always required spread ≤ `max_spread`, but candidate selection never checked it; it does now, and an unknown spread fails. This is why the live pool was 422, not 591.
+- **Settings carry-forward.** Saving Settings rewrote only the form's fields, resetting `max_days_to_close` 540 → 90, and would have erased every new field. Both config writers now use `applyThresholdsPatch`.
+- **`db:config-patch` + committed patch files** as the audit trail for scope changes.
+- **Enrich on cron, jobs 2h apart** (`02 §5`): Hobby crons fire 21–51 min late.
+- **Next.js fetch cache disabled for the database** (`02 §5`). Found at rollout: neon-http queries were being cached inside route handlers, so the new config row was invisible to the jobs.
+
+Measured at rollout: ingest 4,515 stored in 83.7s; enrich 38 assessments in 259s for $0.22; 7 actionable after scoring.

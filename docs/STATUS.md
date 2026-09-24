@@ -1,6 +1,19 @@
 # Afterlight Edge — Build Status
 
-**Updated:** 2026-09-21 · Companion to `05_ROADMAP.md` (this tracks *actual* progress).
+**Updated:** 2026-09-24 · Companion to `05_ROADMAP.md` (this tracks *actual* progress).
+
+## 2026-09-24 — category scope funnel
+
+Design: `docs/superpowers/specs/2026-09-22-category-scope-funnel-design.md`. In scope: store Politics, Economics, Elections, Sports and Climate and Weather; analyse Politics + Economics only. Config row 12.
+
+- **Ingest fixed.** It had been killed at the 300s ceiling on every run since crons returned (2026-09-22/23/24). It now stores only markets with 24h volume ≥ 500: **4,515 stored** (Sports 3,378 · Elections 383 · Economics 327 · Politics 241 · Climate 231), 98,252 below the floor, 27,165 in excluded categories — in **83.7s**.
+- **Enrich pool:** 422 eligible Politics + Economics markets never assessed, after the volume, spread, freshness and time-to-close gates (the design's 591 counted volume only). At ~40/day that is an ~11-day first sweep.
+- **Enrich throughput:** **38 assessments in one run** at concurrency 4 (was ~12 sequential), 259s, 0 failures, only Politics/Economics, ≤ 2 per event across 26 events. It stopped on the wall clock with 2 candidates left, as designed.
+- **Cost came in lower than planned:** that run cost **$0.22 (~$0.006/assessment)**, a third of July's metered $0.019. One run is not a trend; `COSTS.md` keeps the conservative figure until more runs confirm. At this rate daily enrich is ~$7/month.
+- **Score:** 115 markets scored, **7 actionable**.
+- **Now on cron:** ingest 06:00, enrich 08:00, score 10:00, settle 11:00 UTC (Hobby fires 21–51 min late, hence the gaps).
+- **Found and fixed during rollout — Next.js was caching database queries.** `neon-http` queries are `fetch` calls, which Next 14 caches inside route handlers. Repeated identical queries in one function instance were served from cache: jobs kept reading config row 11 after row 12 existed, back-to-back runs shared and overwrote one ledger row (two `settle` calls both reported run 41), and identical snapshot inserts never executed. Fixed with `cache: "no-store"` on the Neon client (`02 §5`). Verified: two `settle` calls now create runs 42 and 43. During the ~20 minutes before the fix, the ledger under-counts runs (runs 40 and 41 each absorbed several executions) and some duplicate-price snapshots were not written.
+- **Also fixed:** Settings saves no longer reset `max_days_to_close` and other unshown fields; enrich candidate selection no longer loads snapshot history.
 
 ## ⚠️ 2026-09-21 — the pipeline had been dead for two months
 
@@ -32,13 +45,9 @@ Consequences, and what was done:
 
 So: on the two categories with real sample size the model **matches the market and finds no fee-adjusted edge** — exactly what `00 §1` predicts for efficient markets. The headline win rests on 11 Sports markets in one series. Paper PnL is empty (nothing was actionable). Nowhere near the `04 §9` bar for re-fitting weights.
 
-### Still open after this pass
+### Resolved 2026-09-24
 
-1. **The active config (version 11) is a leftover experiment.** Its `excluded_categories` excludes Elections, Politics, Economics, Climate and Weather — *everything except Sports*. The seed default excludes only `["crypto","sports"]`. Ingest will currently pull Sports only, the inverse of the MVP thesis. **Decide and write a new config row before the next ingest.**
-2. **Crons are unverified end-to-end.** The matcher fix is deployed-pending; confirm with `curl -i <host>/api/jobs/settle` returning 401 (not 302), then watch for a `pipeline_runs` row appearing without a manual click.
-3. Market data is still ~2 months stale (snapshots frozen 2026-07-23) until an ingest runs.
-
-**Now live end-to-end with real data.** The full pipeline (ingest → enrich → score → display) runs in production on real Kalshi markets, real news (Tavily/GDELT), and real LLM assessments (`claude-sonnet-5`). As of first live run: **12,334 markets** ingested (Elections + Climate), **85 markets** enriched + scored, **3 actionable** opportunities surfaced. See "Post-MVP work (2026-07-22)" below.
+The leftover Sports-only config (row 11) is superseded by the scope-funnel row (12); crons are verified end to end; market data is fresh again. See the section above.
 
 ## Milestones
 
