@@ -16,10 +16,13 @@ The market price is a **strong prior**, not noise. Kalshi event markets are comp
 ## 1. Universe selection (which markets get scored)
 
 A market enters the candidate set iff all hold:
-- Category ∈ included set (events: politics, economics/announcements, culture/media; **crypto & sports excluded**).
+- Category ∈ the enrich allowlist `enrich_categories` (config, default **Politics, Economics**; case-insensitive; empty = any). Distinct from `excluded_categories`, which scopes what ingest *stores* (`02 §5`): a category can be stored and displayed without being analysed — Elections, Sports and Climate as of 2026-09-24. Crypto is excluded from storage.
 - Status open; time to close between **6 hours** and `max_days_to_close` (config, default **90 days** — too close = news-race territory we lose; too far = dead capital). The upper bound is configurable because long-dated categories (e.g. elections, whose liquid markets often sit 3–18 months out) warrant a wider window than short-term economic markets.
-- Liquidity floor: 24h volume ≥ `min_volume` (config, default 500 contracts) AND spread ≤ `max_spread` (default 8¢). Illiquid markets can look like huge "edges" that are actually just wide spreads.
+- Liquidity floor: 24h volume ≥ `min_volume` (config, default 500 contracts) AND spread ≤ `max_spread` (default 8¢). Illiquid markets can look like huge "edges" that are actually just wide spreads. A market with no two-sided book (unknown spread) fails this gate.
 - Rules are self-contained (no market whose resolution source we can't identify from metadata; flagged for manual review instead).
+- Fresh price: the latest snapshot is at most **36 hours** old (`MAX_SNAPSHOT_AGE_HOURS`). Markets that fall below the ingest floor stop being refreshed; without this gate they would be assessed against a stale price.
+- At most `enrich_max_per_event` markets (config, default **2**) per Kalshi event per run, taken in rank order — an event's strike ladder is one question asked several ways and must not consume the run's slots.
+- Implemented as the pure `rankCandidates` (`modules/enrich/select.ts`); `selectCandidates` in `modules/enrich/run.ts` only loads its inputs, reading the latest snapshot per market with `DISTINCT ON`, never snapshot history.
 
 ## 2. Notation
 

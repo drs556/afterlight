@@ -1,4 +1,11 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import type { Thresholds } from "@/lib/config-schema";
+import {
+  MAX_SNAPSHOT_AGE_HOURS,
+  rankCandidates,
+  type Candidate,
+  type CandidateInput,
+} from "./select";
 import { db, schema } from "@/db";
 import { getActiveConfig } from "@/lib/services/config";
 import { getNewsClients, retrieveNews } from "@/modules/news";
@@ -25,11 +32,7 @@ export async function runEnrich(): Promise<RunResult> {
     return { itemsOk: 0, itemsFailed: 0, meta: { budgetExceeded: true, spentToday } };
   }
 
-  const { candidates, eligibleUnassessed } = await selectCandidates(
-    thresholds.min_volume,
-    thresholds.enrich_top_k,
-    thresholds.max_days_to_close,
-  );
+  const { candidates, eligibleUnassessed } = await selectCandidates(thresholds);
 
   let itemsOk = 0;
   let itemsFailed = 0;
@@ -144,106 +147,100 @@ export async function runEnrich(): Promise<RunResult> {
   };
 }
 
-interface Candidate {
-  ticker: string;
-  title: string;
-  rulesSummary: string | null;
-  resolutionSource: string | null;
-  closeTime: Date | null;
-  yesMid: number | null;
-  snapshotId: number | null;
-}
-
 /**
- * Rank active markets by volume × proximity-to-close × staleness; take top K.
- * Also reports how many eligible markets still have no assessment (the real
- * backlog). Selects only the needed columns — never the large `raw` jsonb —
- * so the query stays well under Neon's response-size limit as the DB grows.
+ * Load what rankCandidates needs, in queries bounded by the currently-ingested
+ * market set — never by snapshot or assessment history (docs/04 §1). Selects
+ * only needed columns, never `raw` (Neon 64MB response cap). Performs no
+ * writes; exported for read-only smoke checks.
  */
-async function selectCandidates(
-  minVolume: number,
-  topK: number,
-  maxDaysToClose: number,
+export async function selectCandidates(
+  t: Thresholds,
+  now: Date = new Date(),
 ): Promise<{ candidates: Candidate[]; eligibleUnassessed: number }> {
+  const freshSince = new Date(now.getTime() - MAX_SNAPSHOT_AGE_HOURS * 3_600_000);
+  const categories = t.enrich_categories.map((c) => c.toLowerCase());
+
   const markets = await db
     .select({
       ticker: schema.markets.ticker,
+      eventTicker: schema.markets.eventTicker,
+      category: schema.markets.category,
       title: schema.markets.title,
       rulesSummary: schema.markets.rulesSummary,
       resolutionSource: schema.markets.resolutionSource,
       closeTime: schema.markets.closeTime,
     })
     .from(schema.markets)
-    .where(eq(schema.markets.status, "active"));
+    .where(
+      and(
+        eq(schema.markets.status, "active"),
+        // Ingest bumps updated_at on every market it stores, so this keeps the
+        // set to what recent ingests refreshed; markets that fell below the
+        // floor stop being refreshed and drop out here.
+        gte(schema.markets.updatedAt, freshSince),
+        categories.length > 0
+          ? inArray(sql`lower(${schema.markets.category})`, categories)
+          : undefined,
+      ),
+    );
   if (markets.length === 0) return { candidates: [], eligibleUnassessed: 0 };
-
   const tickers = markets.map((m) => m.ticker);
 
+  // Latest snapshot per ticker via DISTINCT ON over the (ticker, captured_at)
+  // index. The previous version loaded every snapshot ever taken for these
+  // tickers and reduced in JS — a row count that grew with every ingest.
   const snaps = await db
-    .select({
+    .selectDistinctOn([schema.marketSnapshots.ticker], {
       id: schema.marketSnapshots.id,
       ticker: schema.marketSnapshots.ticker,
-      yesMid: schema.marketSnapshots.yesMid,
-      volume: schema.marketSnapshots.volume,
       capturedAt: schema.marketSnapshots.capturedAt,
+      yesMid: schema.marketSnapshots.yesMid,
+      spread: schema.marketSnapshots.spread,
+      volume: schema.marketSnapshots.volume,
     })
     .from(schema.marketSnapshots)
     .where(inArray(schema.marketSnapshots.ticker, tickers))
-    .orderBy(desc(schema.marketSnapshots.capturedAt));
-  const latestSnap = new Map<string, (typeof snaps)[number]>();
-  for (const s of snaps) if (!latestSnap.has(s.ticker)) latestSnap.set(s.ticker, s);
+    .orderBy(schema.marketSnapshots.ticker, desc(schema.marketSnapshots.capturedAt));
+  const snapByTicker = new Map(snaps.map((s) => [s.ticker, s]));
 
-  const assessments = await db
-    .select({ ticker: schema.llmAssessments.ticker, createdAt: schema.llmAssessments.createdAt })
+  // One row per ticker, however many times it has been assessed.
+  const assessed = await db
+    .select({
+      ticker: schema.llmAssessments.ticker,
+      lastAt: sql<string | null>`max(${schema.llmAssessments.createdAt})`,
+    })
     .from(schema.llmAssessments)
     .where(inArray(schema.llmAssessments.ticker, tickers))
-    .orderBy(desc(schema.llmAssessments.createdAt));
-  const lastAssessedAt = new Map<string, Date>();
-  for (const a of assessments) if (!lastAssessedAt.has(a.ticker)) lastAssessedAt.set(a.ticker, a.createdAt);
+    .groupBy(schema.llmAssessments.ticker);
+  const lastAssessedAt = new Map(
+    assessed.map((a) => [a.ticker, a.lastAt ? new Date(a.lastAt) : null]),
+  );
 
-  const now = Date.now();
-  const eligible = markets
-    .map((m) => {
-      const snap = latestSnap.get(m.ticker);
-      const volume = snap?.volume ?? 0;
-      const hoursToClose = m.closeTime
-        ? (new Date(m.closeTime).getTime() - now) / 3_600_000
-        : Infinity;
-      const daysToClose = hoursToClose / 24;
-      const last = lastAssessedAt.get(m.ticker);
-      const stalenessHours = last ? (now - new Date(last).getTime()) / 3_600_000 : 1e6;
+  const rows: CandidateInput[] = markets.flatMap((m) => {
+    const s = snapByTicker.get(m.ticker);
+    if (!s) return [];
+    return [
+      {
+        ...m,
+        snapshotId: s.id,
+        snapshotCapturedAt: s.capturedAt,
+        yesMid: s.yesMid,
+        spread: s.spread,
+        volume: s.volume,
+        lastAssessedAt: lastAssessedAt.get(m.ticker) ?? null,
+      },
+    ];
+  });
 
-      const timeDecay = daysToClose > 0 ? 1 / (1 + daysToClose) : 0;
-      const score = volume * timeDecay * (1 + stalenessHours);
-
-      return {
-        candidate: {
-          ticker: m.ticker,
-          title: m.title,
-          rulesSummary: m.rulesSummary,
-          resolutionSource: m.resolutionSource,
-          closeTime: m.closeTime,
-          yesMid: snap?.yesMid ?? null,
-          snapshotId: snap?.id ?? null,
-        } satisfies Candidate,
-        volume,
-        hoursToClose,
-        score,
-        assessed: last !== undefined,
-      };
-    })
-    // Universe floor (docs/04 §1): enough liquidity, and 6h–maxDaysToClose to close.
-    .filter(
-      (x) => x.volume >= minVolume && x.hoursToClose >= 6 && x.hoursToClose <= maxDaysToClose * 24,
-    );
-
-  const eligibleUnassessed = eligible.filter((x) => !x.assessed).length;
-  const candidates = eligible
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .map((x) => x.candidate);
-
-  return { candidates, eligibleUnassessed };
+  return rankCandidates(rows, {
+    now,
+    topK: t.enrich_top_k,
+    maxPerEvent: t.enrich_max_per_event,
+    categories: t.enrich_categories,
+    minVolume: t.min_volume,
+    maxSpread: t.max_spread,
+    maxDaysToClose: t.max_days_to_close,
+  });
 }
 
 async function upsertNewsItem(item: {
