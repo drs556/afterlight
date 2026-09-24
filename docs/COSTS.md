@@ -54,7 +54,7 @@ Only **`enrich`** spends money, and it is **manual-only** (Runs page "Run now" �
 
 ## 4. The budget guard (why you can't overspend)
 
-`runEnrich` reads `llm_daily_budget_usd` from config (**default $10/day**), sums today's enrich `cost_usd` from `pipeline_runs`, and **stops before starting any assessment that would cross the cap** (`src/modules/enrich/run.ts`). At ~$0.033/assessment, $10 covers ~300 assessments/day — well above the 40-market `enrich_top_k`. Since enrich is manual-only, spend happens only when you click "Run now".
+`runEnrich` reads `llm_daily_budget_usd` from config (**default $10/day**), sums today's enrich `cost_usd` from `pipeline_runs`, and **stops before starting any assessment that would cross the cap** (`src/modules/enrich/run.ts`). Metered cost is **$0.019/assessment all-in** (mean of the 12 full runs to 2026-07-24, news included), below the $0.033 planning figure above. Enrich runs daily on cron since 2026-09-24: ~40 assessments/day ≈ **$0.76/day ≈ $23/month**. $10/day covers ~500 assessments, so the cap is a backstop, not the operating limit.
 
 ---
 

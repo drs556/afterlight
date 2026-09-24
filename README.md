@@ -50,7 +50,7 @@ Next.js 14 (App Router) · TypeScript strict · Neon Postgres + Drizzle · Auth.
 ### Cron cadence (Hobby vs Pro)
 
 Vercel's **Hobby (free)** tier only runs cron jobs **once per day**. `vercel.json`
-therefore ships daily schedules (ingest 12:00, score 12:30, settle 13:00 UTC) so
+therefore ships daily schedules 2h apart (ingest 06:00, enrich 08:00, score 10:00, settle 11:00 UTC) so
 the free deploy succeeds. You can trigger any job on demand from the **Runs** page
 ("Run now") regardless of the cron cadence.
 

@@ -6,12 +6,12 @@ Operational reference for the deployed app. See `docs/STATUS.md` for build progr
 
 | Job | Cron (Hobby, daily) | Cron (Pro, spec cadence) | Costs money? |
 |---|---|---|---|
-| `ingest` | 12:00 UTC | every 30 min | No (Kalshi data is free) |
-| `score` | 12:30 UTC | :15 and :45 past the hour | No (pure compute) |
-| `settle` | 13:00 UTC | hourly | No |
-| `enrich` | **not scheduled — manual only** | (same) | **Yes** — the only paid job |
+| `ingest` | 06:00 UTC | every 30 min | No (Kalshi data is free) |
+| `enrich` | 08:00 UTC | every 2–4 h | **Yes** — the only paid job (~$0.76/day at 40 assessments) |
+| `score` | 10:00 UTC | :15 and :45 past the hour | No (pure compute) |
+| `settle` | 11:00 UTC | hourly | No |
 
-Vercel Hobby only fires cron jobs once per day; `vercel.json` ships the daily
+Vercel Hobby only fires cron jobs once per day, and late (observed 21–51 min), so jobs sit 2h apart to keep ingest → enrich → score in order; `vercel.json` ships the daily
 schedule above so the free deploy succeeds. To restore the spec cadence on
 Pro, edit `vercel.json`:
 

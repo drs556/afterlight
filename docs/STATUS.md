@@ -83,7 +83,7 @@ Went live and hardened the pipeline against real Kalshi data. Highlights:
 ## Known gaps / to verify
 
 1. ~~**Kalshi live client unverified**~~ ✅ **Verified + ingested live 2026-07-22** (12,334 markets). Three spec-drift bugs fixed (above).
-2. **Cron cadence** — Hobby = once/day (ingest 12:00, score 12:30, settle 13:00 UTC). Sub-daily needs Vercel Pro (snippet in README). `enrich` intentionally off-cron.
+2. **Cron cadence** — Hobby = once/day per job, and it fires late (observed +21 to +51 min), so jobs sit 2h apart to keep order: ingest 06:00, enrich 08:00, score 10:00, settle 11:00 UTC. Sub-daily needs Vercel Pro (snippet in README).
 3. ~~**Costs** — `docs/COSTS.md` not yet created~~ ✅ **Created** (verified pricing). Enrich runs ~$0.25/run (≈12 assessments), budget-guarded at $10/day, manual-only.
 4. **48h gapless snapshots (M1 accept)** — runtime property; needs Pro cron or manual runs to satisfy.
 5. **Ingest write batching** — ingest writes markets one row at a time (2 round trips each; ~202–219s for 12k markets). Now comfortably inside the corrected `maxDuration = 300`, so this stays a deferred optimization rather than a risk. Batched multi-row upserts would cut it by roughly an order of magnitude when the universe grows; note that `ON CONFLICT DO UPDATE` needs within-batch ticker dedup and a per-row fallback to keep today's fault tolerance.
