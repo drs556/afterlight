@@ -100,7 +100,7 @@ Prioritization for `enrich` (cost control): score candidates by `volume × time_
 
 **Orphaned runs.** A run killed by the platform (serverless timeout) leaves its `pipeline_runs` row as `running` forever, because `withRun`'s catch block never executes. `isJobRunning` therefore ignores `running` rows older than `STALE_RUN_MS` (15 min, `modules/runs/staleness.ts`) — otherwise a single killed run disables that job's "Run now" button permanently, which is what happened to `ingest` between 2026-07-23 and 2026-09-21.
 
-**Function budgets.** `ingest`, `enrich` and `settle` declare `maxDuration = 300`; `score` keeps 60. The enrich wall-clock guard must satisfy `enrich_max_seconds + 60s (per-call LLM timeout) <= maxDuration` — at the 240s default that worst case is exactly 300s. Raising the budget means raising `maxDuration` too.
+**Function budgets.** `ingest`, `enrich` and `settle` declare `maxDuration = 300`; `score` keeps 60. The enrich wall-clock guard must satisfy `enrich_max_seconds + 60s (per-call LLM timeout) <= maxDuration` — at the 240s default that worst case is exactly 300s. Raising the budget means raising `maxDuration` too. Enrich runs `enrich_concurrency` assessments in parallel; because both guards act only when an assessment starts, parallelism does not change that worst case.
 
 ## 6. Known platform limits & escape hatches
 

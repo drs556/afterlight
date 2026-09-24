@@ -6,6 +6,7 @@ import {
   type Candidate,
   type CandidateInput,
 } from "./select";
+import { runPool } from "./pool";
 import { db, schema } from "@/db";
 import { getActiveConfig } from "@/lib/services/config";
 import { getNewsClients, retrieveNews } from "@/modules/news";
@@ -13,13 +14,15 @@ import { getLlmClient } from "@/modules/llm";
 import type { RunResult } from "@/modules/runs/ledger";
 
 /**
- * Enrichment job (docs/02 §5, docs/03 §3, docs/04 §4):
- * pick top-K candidate markets by liquidity × proximity-to-close × staleness,
- * retrieve+dedupe+filter news, run one LLM assessment each, and store news,
- * market_news, and llm_assessments (append-only).
+ * Enrichment job (docs/02 §5, docs/03 §3, docs/04 §4): pick candidates with
+ * rankCandidates, then for each retrieve+dedupe+filter news and run one LLM
+ * assessment, storing news, market_news and llm_assessments (append-only).
  *
- * Budget-guarded: reads a daily USD cap from config, tracks today's enrich
- * spend, and stops-and-logs when exceeded — never overspends.
+ * Runs `enrich_concurrency` assessments at a time. The wall-clock and daily
+ * budget guards are checked when an assessment is about to START: in-flight
+ * work always finishes, so the time worst case stays enrich_max_seconds + one
+ * 60s LLM timeout at any concurrency, and the budget can be overshot by at
+ * most concurrency − 1 assessments.
  */
 export async function runEnrich(): Promise<RunResult> {
   const { thresholds } = await getActiveConfig();
@@ -41,96 +44,42 @@ export async function runEnrich(): Promise<RunResult> {
   let stoppedForTime = false;
   const errorSamples: string[] = [];
 
-  // Wall-clock budget: stop starting new assessments before the serverless
-  // timeout. Candidates are stalest-first, so a re-run picks up the rest.
   const startedAt = Date.now();
   const maxMs = thresholds.enrich_max_seconds * 1000;
 
-  for (const c of candidates) {
-    if (spentToday + runCost >= budget) {
-      stoppedForBudget = true;
-      break;
-    }
-    if (Date.now() - startedAt >= maxMs) {
-      stoppedForTime = true;
-      break;
-    }
-    try {
-      const now = new Date();
-      const retrieved = await retrieveNews({
-        clients: newsClients,
-        query: `${c.title} ${c.ticker}`,
-        marketText: `${c.title} ${c.rulesSummary ?? ""}`,
-        before: now,
-      });
-
-      // Persist news items and their market links; build prompt-facing ids.
-      const promptNews = [];
-      for (let i = 0; i < retrieved.items.length; i++) {
-        const { item, score } = retrieved.items[i]!;
-        const newsId = await upsertNewsItem(item);
-        await db.insert(schema.marketNews).values({
-          marketTicker: c.ticker,
-          newsId,
-          relevanceScore: score,
-        });
-        promptNews.push({
-          id: i + 1, // stable 1-based id the model cites
-          source: item.source,
-          headline: item.headline,
-          publishedAt: item.publishedAt?.toISOString() ?? null,
-          snippet: item.snippet,
-        });
+  await runPool(
+    candidates,
+    thresholds.enrich_concurrency,
+    () => {
+      if (spentToday + runCost >= budget) {
+        stoppedForBudget = true;
+        return false;
       }
-
-      const assessment = await llm.assess({
-        title: c.title,
-        rulesSummary: c.rulesSummary,
-        resolutionSource: c.resolutionSource,
-        closeTime: c.closeTime?.toISOString() ?? null,
-        marketPriceYes: c.yesMid,
-        today: now.toISOString().slice(0, 10),
-        news: promptNews,
-      });
-
-      await db.insert(schema.llmAssessments).values({
-        ticker: c.ticker,
-        snapshotId: c.snapshotId,
-        promptVersion: assessment.promptVersion,
-        model: assessment.model,
-        pEstimate: assessment.output.p_yes,
-        pLow: assessment.output.p_low,
-        pHigh: assessment.output.p_high,
-        rationale: {
-          thesis: assessment.output.thesis,
-          evidence_for: assessment.output.evidence_for,
-          evidence_against: assessment.output.evidence_against,
-          change_triggers: assessment.output.change_triggers,
-          self_check: assessment.output.self_check,
-        },
-        citations: assessment.output.citation_ids,
-        tokensIn: assessment.tokensIn,
-        tokensOut: assessment.tokensOut,
-        costUsd: String(assessment.costUsd),
-      });
-
-      runCost += assessment.costUsd;
-      itemsOk++;
-    } catch (err) {
-      // A failed assessment (schema/API/timeout) is logged as a failure, never
-      // guessed. Capture the reason so the Runs page can show why (docs/02 §5).
-      itemsFailed++;
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`enrich: assessment failed for ${c.ticker}: ${msg}`);
-      const short = `${c.ticker}: ${msg.slice(0, 160)}`;
-      if (errorSamples.length < 5 && !errorSamples.includes(short)) errorSamples.push(short);
-    }
-  }
+      if (Date.now() - startedAt >= maxMs) {
+        stoppedForTime = true;
+        return false;
+      }
+      return true;
+    },
+    async (c) => {
+      try {
+        runCost += await assessCandidate(c, newsClients, llm);
+        itemsOk++;
+      } catch (err) {
+        // A failed assessment (schema/API/timeout) is logged as a failure, never
+        // guessed. Capture the reason so the Runs page can show why (docs/02 §5).
+        itemsFailed++;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`enrich: assessment failed for ${c.ticker}: ${msg}`);
+        const short = `${c.ticker}: ${msg.slice(0, 160)}`;
+        if (errorSamples.length < 5 && !errorSamples.includes(short)) errorSamples.push(short);
+      }
+    },
+  );
 
   // True backlog: eligible markets with no assessment, less the ones this run
-  // just assessed (successes come off the top of the un-assessed queue). When
-  // this hits 0, every eligible market has an assessment; further runs only
-  // refresh the stalest.
+  // just assessed. When this hits 0, every eligible market has an assessment;
+  // further runs only refresh the stalest.
   const remaining = Math.max(0, eligibleUnassessed - itemsOk);
   return {
     itemsOk,
@@ -141,10 +90,83 @@ export async function runEnrich(): Promise<RunResult> {
       stoppedForTime,
       spentBeforeRun: spentToday,
       assessedThisRun: itemsOk,
+      candidates: candidates.length,
+      concurrency: thresholds.enrich_concurrency,
       remaining,
       errorSamples,
     },
   };
+}
+
+/**
+ * One market: retrieve news published before now, store it and its market
+ * links, run the LLM assessment, store it. Returns the assessment's cost.
+ * Throws on any failure; the caller counts it.
+ */
+async function assessCandidate(
+  c: Candidate,
+  newsClients: ReturnType<typeof getNewsClients>,
+  llm: ReturnType<typeof getLlmClient>,
+): Promise<number> {
+  const now = new Date();
+  const retrieved = await retrieveNews({
+    clients: newsClients,
+    query: `${c.title} ${c.ticker}`,
+    marketText: `${c.title} ${c.rulesSummary ?? ""}`,
+    before: now,
+  });
+
+  // Persist news items and their market links; build prompt-facing ids.
+  const promptNews = [];
+  for (let i = 0; i < retrieved.items.length; i++) {
+    const { item, score } = retrieved.items[i]!;
+    const newsId = await upsertNewsItem(item);
+    await db.insert(schema.marketNews).values({
+      marketTicker: c.ticker,
+      newsId,
+      relevanceScore: score,
+    });
+    promptNews.push({
+      id: i + 1, // stable 1-based id the model cites
+      source: item.source,
+      headline: item.headline,
+      publishedAt: item.publishedAt?.toISOString() ?? null,
+      snippet: item.snippet,
+    });
+  }
+
+  const assessment = await llm.assess({
+    title: c.title,
+    rulesSummary: c.rulesSummary,
+    resolutionSource: c.resolutionSource,
+    closeTime: c.closeTime?.toISOString() ?? null,
+    marketPriceYes: c.yesMid,
+    today: now.toISOString().slice(0, 10),
+    news: promptNews,
+  });
+
+  await db.insert(schema.llmAssessments).values({
+    ticker: c.ticker,
+    snapshotId: c.snapshotId,
+    promptVersion: assessment.promptVersion,
+    model: assessment.model,
+    pEstimate: assessment.output.p_yes,
+    pLow: assessment.output.p_low,
+    pHigh: assessment.output.p_high,
+    rationale: {
+      thesis: assessment.output.thesis,
+      evidence_for: assessment.output.evidence_for,
+      evidence_against: assessment.output.evidence_against,
+      change_triggers: assessment.output.change_triggers,
+      self_check: assessment.output.self_check,
+    },
+    citations: assessment.output.citation_ids,
+    tokensIn: assessment.tokensIn,
+    tokensOut: assessment.tokensOut,
+    costUsd: String(assessment.costUsd),
+  });
+
+  return assessment.costUsd;
 }
 
 /**
