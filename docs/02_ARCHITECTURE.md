@@ -102,6 +102,8 @@ Prioritization for `enrich` (cost control): score candidates by `volume × time_
 
 **Function budgets.** `ingest`, `enrich` and `settle` declare `maxDuration = 300`; `score` keeps 60. The enrich wall-clock guard must satisfy `enrich_max_seconds + 60s (per-call LLM timeout) <= maxDuration` — at the 240s default that worst case is exactly 300s. Raising the budget means raising `maxDuration` too. Enrich runs `enrich_concurrency` assessments in parallel; because both guards act only when an assessment starts, parallelism does not change that worst case.
 
+**No fetch caching of database queries** (fixed 2026-09-24). `neon-http` sends every query as an HTTP `fetch`, and Next.js 14 caches fetches made inside route handlers. Until the Neon client was created with `fetchOptions: { cache: "no-store" }` (`src/db/index.ts`), a repeated identical query inside the same function instance was answered from that cache: jobs kept reading a superseded `config_versions` row, a second `pipeline_runs` insert returned the first row's id without creating a row (so runs overwrote each other's ledger entry), and snapshot inserts identical to an earlier one never reached the database. It went unnoticed because crons were dead until 2026-09-21 and then ran once a day. Verify with two back-to-back calls to `/api/jobs/settle`: they must create **two** `pipeline_runs` rows.
+
 ## 6. Known platform limits & escape hatches
 
 - Vercel serverless max duration may be insufficient for large enrich batches → design jobs as **small batch + cursor + reschedule** (self-invoking until done) from day one.
