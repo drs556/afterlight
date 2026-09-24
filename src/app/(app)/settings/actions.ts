@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/authz";
 import { getActiveConfig } from "@/lib/services/config";
+import { applyThresholdsPatch } from "@/lib/config-schema";
 
 const num = (v: FormDataEntryValue | null) => Number(v);
 
@@ -46,21 +47,14 @@ export async function saveSettings(formData: FormData): Promise<void> {
   });
 
   const current = await getActiveConfig();
+  const { w_mkt, w_llm, w_base, ...formThresholds } = parsed;
 
   await db.insert(schema.configVersions).values({
-    weights: { w_mkt: parsed.w_mkt, w_llm: parsed.w_llm, w_base: parsed.w_base },
-    thresholds: {
-      net_edge_min: parsed.net_edge_min,
-      net_edge_min_longshot: parsed.net_edge_min_longshot,
-      min_volume: parsed.min_volume,
-      max_spread: parsed.max_spread,
-      exit_friction: parsed.exit_friction,
-      llm_daily_budget_usd: parsed.llm_daily_budget_usd,
-      enrich_top_k: parsed.enrich_top_k,
-      bankroll_usd: parsed.bankroll_usd,
-      // Category exclusions are managed via seed config; carry them forward.
-      excluded_categories: current.thresholds.excluded_categories,
-    },
+    weights: { w_mkt, w_llm, w_base },
+    // Carry every field the form doesn't edit (max_days_to_close, enrich_*,
+    // ingest_*, excluded_categories, …) forward. Writing only the form's
+    // fields silently reset them to their defaults on every save.
+    thresholds: applyThresholdsPatch(current.thresholds, formThresholds),
     note: "settings update",
   });
 

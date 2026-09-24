@@ -1,0 +1,24 @@
+{
+  "note": "category scope funnel (docs/superpowers/specs/2026-09-22-category-scope-funnel-design.md): store Politics, Economics, Elections, Sports, Climate and Weather above a 500 24h-volume floor; enrich Politics + Economics only",
+  "thresholds": {
+    "excluded_categories": [
+      "Financials",
+      "Entertainment",
+      "Crypto",
+      "Commodities",
+      "Science and Technology",
+      "Mentions",
+      "Companies",
+      "Social",
+      "World",
+      "Health",
+      "AI",
+      "Transportation",
+      "Business"
+    ],
+    "ingest_min_volume": 500,
+    "enrich_categories": ["Politics", "Economics"],
+    "enrich_max_per_event": 2,
+    "enrich_concurrency": 4
+  }
+}

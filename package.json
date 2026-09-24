@@ -17,7 +17,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:add-user": "tsx src/db/add-user.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "db:config-patch": "tsx src/db/config-patch.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

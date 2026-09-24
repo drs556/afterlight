@@ -17,7 +17,7 @@ Decision-support web app for trading **Kalshi event markets** (MVP thesis: polit
 ## Conventions established (follow these)
 
 - **Jobs:** each has a pure-ish body (`runIngest`/`runEnrich`/`runScore`/`runSettle`), wrapped by `withRun()` (ledger in `pipeline_runs`), exposed at `/api/jobs/<name>` (guarded by `CRON_SECRET` bearer) AND a session-authed "Run now" server action. `modules/scoring` & `modules/calibration` stay **pure** (no I/O) — put their job orchestrators in `lib/services/*` so coverage isn't polluted.
-- **Config:** `getActiveConfig()` returns the latest `config_versions` row; new fields go in the zod schema in `lib/services/config.ts` with defaults (so old rows still parse). Settings writes a **new** row, never mutates.
+- **Config:** `getActiveConfig()` returns the latest `config_versions` row; new fields go in the zod schema in `lib/services/config.ts` with defaults (so old rows still parse). Settings writes a **new** row, never mutates. Every writer carries unedited fields forward via `applyThresholdsPatch` (`lib/config-schema.ts`): the Settings form, and `npm run db:config-patch -- config/patches/<file>.json`, whose committed patch files are the audit trail of scope changes.
 - **Append-only:** never update/delete `market_snapshots`, `llm_assessments`, `scores`.
 - **Verify against Neon:** each milestone was smoke-tested with a throwaway `_x-smoke.ts` at repo root (`npx tsx`, then delete). Restore config to seed defaults after tests that insert config rows.
 - **Spec drift recorded:** `04 §4` (temperature omitted — Sonnet rejects it) and `02 §5` (enrich manual) are documented deviations. If you deviate, update the spec in the same change.
