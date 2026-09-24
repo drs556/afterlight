@@ -89,7 +89,7 @@ Non-negotiables: snapshots/assessments/scores are never updated or deleted (cali
 
 | Job | Default cadence | What it does |
 |---|---|---|
-| `ingest` | every 30 min | Pull open Kalshi markets in included categories; upsert `markets`; append `market_snapshots`. Cursor-paginated; partial failure tolerated |
+| `ingest` | daily (Hobby) | Walk every open Kalshi market; **store only** those in a stored category (not in `excluded_categories`) whose 24h volume ≥ `ingest_min_volume` (config, default 500): upsert `markets`, append `market_snapshots`. ~95% of the open universe has no 24h volume and is walked but not stored (measured 2026-09-22: 113,274 open, ~4,017 stored across the five in-scope categories). Cursor-paginated; partial failure tolerated |
 | `enrich` | **manual for MVP** (prioritized) | For top-K candidate markets (by liquidity, proximity to close, staleness): fetch news, dedupe, then one LLM assessment per market. **Budget-guarded**: hard daily cost cap from config; skip-and-log when exceeded. **Updated M2:** run on-demand via the Runs page "Run now" button rather than on a cron, since it is the only job that spends money (news + LLM APIs, ~$1–2/run). Re-add a Vercel cron entry to automate once cost is trusted. |
 | `score` | after ingest & enrich | Recompute `scores` for markets having fresh snapshot (+ latest assessment); pure functions per `04_ALGORITHM_SPEC.md` |
 | `settle` | hourly | Detect resolved markets; write `resolutions`; trigger calibration metric refresh. **Driven from our own table** (see below) |
